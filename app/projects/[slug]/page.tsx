@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getProject, projects } from "@/data/projects";
 import { Container } from "@/components/layout/Section";
 import { ProjectGallery } from "@/components/projects/ProjectGallery";
+import { Engagement } from "@/components/social/Engagement";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -138,6 +139,7 @@ export default async function ProjectPage({ params }: Props) {
             </section>
           </aside>
         </div>
+        <Engagement type="project" id={project.slug} path={`/projects/${project.slug}`} />
       </Container>
     </div>
   );

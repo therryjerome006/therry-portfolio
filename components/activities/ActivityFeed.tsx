@@ -1,5 +1,6 @@
 import type { ActivityPost } from "@/lib/activities/db";
 import { PhotoStrip } from "@/components/activities/PhotoStrip";
+import { Engagement } from "@/components/social/Engagement";
 import { formatDate } from "@/lib/format";
 
 export function ActivityFeed({ posts }: { posts: ActivityPost[] }) {
@@ -16,6 +17,9 @@ export function ActivityFeed({ posts }: { posts: ActivityPost[] }) {
             </header>
             {post.items.length > 0 ? <PhotoStrip items={post.items} /> : null}
             <p className="px-4 py-4 text-sm leading-6 whitespace-pre-wrap text-ink">{post.description}</p>
+            <div className="px-4 pb-4">
+              <Engagement type="post" id={post.id} path="/realisations" />
+            </div>
           </article>
         </li>
       ))}

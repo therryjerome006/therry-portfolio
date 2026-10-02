@@ -5,6 +5,7 @@ import { ArticleShare } from "@/components/blog/ArticleShare";
 import { MediaGallery } from "@/components/media/MediaGallery";
 import { RelatedMedia } from "@/components/media/RelatedMedia";
 import { Container } from "@/components/layout/Section";
+import { Engagement } from "@/components/social/Engagement";
 import { mediaTypeLabels } from "@/lib/media/constants";
 import { getMediaBySlug, neighbors, relatedMedia } from "@/lib/media/db";
 import { coverOf } from "@/lib/media/format";
@@ -80,6 +81,7 @@ export default async function MediaPostPage({ params }: Props) {
       <div className="mt-8">
         <ArticleShare title={post.title} url={shareUrl} />
       </div>
+      <Engagement type="media" id={post.id} path={`/media/${post.slug}`} />
       <nav className="mt-10 flex flex-wrap justify-between gap-3 border-t border-line pt-6" aria-label="Publications voisines">
         {around.previous ? (
           <Link href={`/media/${around.previous.slug}`} className="text-sm font-semibold">

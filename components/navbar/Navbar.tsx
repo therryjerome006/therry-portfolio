@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
+import { AccountLink } from "@/components/social/AccountLink";
 import { navItems } from "@/data/navigation";
 import { profile } from "@/data/profile";
 
@@ -55,6 +56,7 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <AccountLink />
           {profile.cvUrl ? (
             <Link href={profile.cvUrl} className="btn btn-line hidden h-10 min-h-0 px-3 sm:inline-flex">
               CV
@@ -98,6 +100,9 @@ export function Navbar() {
                 </Link>
               </li>
             ) : null}
+            <li onClick={closeAfterNavigation}>
+              <AccountLink className="block py-3 text-lg" />
+            </li>
           </ul>
         </nav>
       ) : null}

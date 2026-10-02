@@ -6,6 +6,7 @@ import { ArticleHeader } from "@/components/blog/ArticleHeader";
 import { ArticleShare } from "@/components/blog/ArticleShare";
 import { RelatedArticles } from "@/components/blog/BlogCards";
 import { Container } from "@/components/layout/Section";
+import { Engagement } from "@/components/social/Engagement";
 import { profile } from "@/data/profile";
 import {
   getAdjacentPosts,
@@ -88,6 +89,7 @@ export default async function ArticlePage({ params }: Props) {
         <div className="mt-10">
           <ArticleShare title={post.title} url={url} />
         </div>
+        <Engagement type="article" id={post.slug} path={`/blog/${post.slug}`} />
       </div>
       <nav className="mx-auto mt-12 grid max-w-3xl gap-4 border-t border-line pt-8 sm:grid-cols-2" aria-label="Articles voisins">
         {adjacent.previous ? (
