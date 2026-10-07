@@ -1,11 +1,17 @@
-export const navItems = [
-  { href: "/#accueil", label: "Accueil" },
-  { href: "/#a-propos", label: "À propos" },
+export const socialNav = [
+  { href: "/", label: "Accueil" },
+  { href: "/decouvrir", label: "Découvrir" },
+  { href: "/articles", label: "Articles" },
+  { href: "/communautes", label: "Communautés" },
+] as const;
+
+export const developerNav = [
+  { href: "/developpeur", label: "À propos" },
+  { href: "/developpeur#competences", label: "Compétences" },
+  { href: "/developpeur#projets", label: "Projets" },
   { href: "/realisations", label: "Réalisations" },
-  { href: "/#competences", label: "Compétences" },
-  { href: "/#projets", label: "Projets" },
-  { href: "/blog", label: "Blog" },
+  { href: "/blog", label: "Ses articles" },
   { href: "/media", label: "Media" },
-  { href: "/#parcours", label: "Parcours" },
-  { href: "/#contact", label: "Contact" },
+  { href: "/developpeur#parcours", label: "Parcours" },
+  { href: "/developpeur#contact", label: "Contact" },
 ] as const;

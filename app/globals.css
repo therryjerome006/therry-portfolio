@@ -442,6 +442,15 @@ body {
   margin-top: 1.15rem;
 }
 
+.prose-article > p:first-of-type::first-letter {
+  float: left;
+  margin: 0.12em 0.45rem 0 0;
+  font-family: var(--font-serif), serif;
+  font-size: 3.3rem;
+  line-height: 0.75;
+  color: var(--accent);
+}
+
 .prose-article h2,
 .prose-article h3 {
   font-family: var(--font-instrument-serif), serif;

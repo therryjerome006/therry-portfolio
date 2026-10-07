@@ -13,7 +13,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <div className="w-full">
         <p className="kicker">Compte</p>
         <h1 className="display mt-3 text-4xl text-ink">Connexion</h1>
-        <p className="mt-3 text-sm leading-6 text-muted">Le site reste lisible sans compte. La connexion sert à aimer et commenter.</p>
+        <p className="mt-3 text-sm leading-6 text-muted">Le fil reste lisible sans compte. La connexion sert à publier, aimer et commenter.</p>
         <div className="mt-8">
           <AuthForm mode="login" next={next} />
         </div>

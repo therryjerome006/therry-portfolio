@@ -95,14 +95,21 @@ export async function updateProfile(formData: FormData): Promise<SocialState> {
   const displayName = String(formData.get("displayName") ?? "").trim().slice(0, 40);
   const username = String(formData.get("username") ?? "").trim().toLowerCase();
   const bio = String(formData.get("bio") ?? "").trim().slice(0, 280);
+  const interests = String(formData.get("interests") ?? "").trim().slice(0, 160);
+  const ageBand = String(formData.get("ageBand") ?? "");
   const avatarUrl = String(formData.get("avatarUrl") ?? "").trim();
   if (!displayName) return { error: "Indiquez un nom." };
   if (!/^[a-z0-9_]{3,24}$/.test(username)) return { error: "Le nom d'utilisateur utilise 3 à 24 lettres, chiffres ou _." };
   if (avatarUrl && !avatarUrl.startsWith("https://")) return { error: "L'avatar doit être une adresse https." };
-  const { error } = await session.supabase
-    .from("profiles")
-    .update({ display_name: displayName, username, bio, avatar_url: avatarUrl })
-    .eq("id", session.userId);
+  const patch: { display_name: string; username: string; bio: string; interests: string; avatar_url: string; age_band?: string } = {
+    display_name: displayName,
+    username,
+    bio,
+    interests,
+    avatar_url: avatarUrl,
+  };
+  if (["12-15", "16-17", "18-22", "23+"].includes(ageBand)) patch.age_band = ageBand;
+  const { error } = await session.supabase.from("profiles").update(patch).eq("id", session.userId);
   if (error) return { error: "Ce nom d'utilisateur est peut-être déjà pris." };
   refresh("/profil");
   refresh(`/profil/${username}`);

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ageBands } from "@/lib/network/constants";
 import { updateProfile } from "@/lib/actions/social";
 import type { PublicProfile } from "@/lib/social/queries";
 import { browserClient } from "@/lib/supabase/browser";
@@ -41,6 +42,22 @@ export function ProfileEditor({ profile }: { profile: PublicProfile }) {
           Bio
           <textarea name="bio" defaultValue={profile.bio} maxLength={280} rows={4} className="field" />
         </label>
+        <label className="grid gap-2 text-sm font-semibold">
+          Centres d&apos;intérêt
+          <input name="interests" defaultValue={profile.interests} maxLength={160} className="field" />
+        </label>
+        <label className="grid gap-2 text-sm font-semibold">
+          Tranche d&apos;âge
+          <select name="ageBand" className="field" defaultValue="unknown">
+            <option value="unknown">Non précisée</option>
+            {ageBands.map((band) => (
+              <option key={band.value} value={band.value}>
+                {band.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="text-xs leading-5 text-muted">La tranche d&apos;âge n&apos;est pas affichée. Elle sert à limiter les contacts entre les moins de 18 ans et les comptes de 23 ans et plus.</p>
         <label className="grid gap-2 text-sm font-semibold">
           Avatar (adresse https, facultatif)
           <input name="avatarUrl" defaultValue={profile.avatarUrl} className="field" placeholder="https://" />

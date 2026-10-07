@@ -1,4 +1,4 @@
-export const contentTypes = ["article", "post", "project", "media"] as const;
+export const contentTypes = ["article", "post", "project", "media", "feed", "comment"] as const;
 
 export type ContentType = (typeof contentTypes)[number];
 

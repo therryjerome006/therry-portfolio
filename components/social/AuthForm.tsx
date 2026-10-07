@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { ageBands } from "@/lib/network/constants";
 import { browserClient } from "@/lib/supabase/browser";
 import { safeNext } from "@/lib/social/content";
 
@@ -24,6 +25,7 @@ export function AuthForm({ mode, next }: { mode: "login" | "signup" | "forgot"; 
     const email = String(form.get("email") ?? "").trim();
     const password = String(form.get("password") ?? "");
     const displayName = String(form.get("displayName") ?? "").trim();
+    const ageBand = String(form.get("ageBand") ?? "");
     setPending(true);
     setError("");
     setInfo("");
@@ -43,7 +45,7 @@ export function AuthForm({ mode, next }: { mode: "login" | "signup" | "forgot"; 
       const { data, error: signError } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: redirectTo, data: { display_name: displayName || "Visiteur" } },
+        options: { emailRedirectTo: redirectTo, data: { display_name: displayName || "Visiteur", age_band: ageBand } },
       });
       setPending(false);
       if (signError) {
@@ -75,6 +77,18 @@ export function AuthForm({ mode, next }: { mode: "login" | "signup" | "forgot"; 
         <label className="grid gap-2 text-sm font-semibold">
           Nom affiché
           <input name="displayName" required maxLength={40} className="field" autoComplete="nickname" />
+        </label>
+      ) : null}
+      {mode === "signup" ? (
+        <label className="grid gap-2 text-sm font-semibold">
+          Tranche d&apos;âge
+          <select name="ageBand" required className="field" defaultValue="18-22">
+            {ageBands.map((band) => (
+              <option key={band.value} value={band.value}>
+                {band.label}
+              </option>
+            ))}
+          </select>
         </label>
       ) : null}
       <label className="grid gap-2 text-sm font-semibold">

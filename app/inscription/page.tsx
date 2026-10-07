@@ -13,7 +13,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
       <div className="w-full">
         <p className="kicker">Compte</p>
         <h1 className="display mt-3 text-4xl text-ink">Créer un compte</h1>
-        <p className="mt-3 text-sm leading-6 text-muted">Votre e-mail reste privé. Seuls le nom, le nom d&apos;utilisateur et la bio sont publics.</p>
+        <p className="mt-3 text-sm leading-6 text-muted">TY Space s&apos;adresse aux 12–22 ans. L&apos;e-mail, le téléphone et la date de naissance complète ne sont pas affichés.</p>
         <div className="mt-8">
           <AuthForm mode="signup" next={next} />
         </div>

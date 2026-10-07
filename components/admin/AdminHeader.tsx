@@ -13,6 +13,7 @@ const links = [
   { href: "/admin/media", label: "Media", icon: SquarePen },
   { href: "/admin/realisations", label: "Réalisations", icon: SquarePen },
   { href: "/admin/communaute", label: "Communauté", icon: SquarePen },
+  { href: "/admin/reseau", label: "Réseau", icon: SquarePen },
 ];
 
 export function AdminHeader() {
@@ -28,6 +29,7 @@ export function AdminHeader() {
     if (href === "/admin/media") return pathname.startsWith("/admin/media");
     if (href === "/admin/realisations") return pathname.startsWith("/admin/realisations");
     if (href === "/admin/communaute") return pathname.startsWith("/admin/communaute");
+    if (href === "/admin/reseau") return pathname.startsWith("/admin/reseau");
     return pathname === "/admin/blog" || /^\/admin\/blog\/[^/]+\/edit$/.test(pathname);
   }
 

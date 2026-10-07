@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Bell, Menu, Search, X } from "lucide-react";
+import { CreateMenu } from "@/components/network/CreateMenu";
 import { AccountLink } from "@/components/social/AccountLink";
-import { navItems } from "@/data/navigation";
-import { profile } from "@/data/profile";
+import { developerNav, socialNav } from "@/data/navigation";
 
 export function Navbar() {
   const pathname = usePathname();
@@ -32,39 +32,41 @@ export function Navbar() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-bg/90 backdrop-blur">
-      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link href="/#accueil" className="flex items-center gap-3 text-ink" onClick={() => setOpen(false)}>
-          <span className="grid h-9 w-9 place-items-center border border-accent font-mono text-xs">TJ</span>
-          <span className="hidden text-sm font-medium tracking-wide sm:inline">{profile.name}</span>
+    <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur">
+      <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between gap-3 px-4">
+        <Link href="/" className="flex items-center gap-2 text-ink" onClick={() => setOpen(false)}>
+          <span className="grid h-9 w-9 place-items-center bg-accent font-mono text-xs font-bold text-white">TY</span>
+          <span className="text-sm font-bold tracking-wide">TY Space</span>
         </Link>
 
-        <nav className="hidden items-center gap-5 lg:flex" aria-label="Principale">
-          {navItems.map((item) => {
-            const active = item.href.startsWith("/") && !item.href.startsWith("/#") && (pathname === item.href || pathname.startsWith(`${item.href}/`));
+        <nav className="hidden items-center gap-5 md:flex" aria-label="Principale">
+          {socialNav.map((item) => {
+            const active = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`text-sm ${active ? "text-ink" : "text-muted hover:text-ink"}`}
-                aria-current={active ? "page" : undefined}
-              >
+              <Link key={item.href} href={item.href} className={`text-sm font-semibold ${active ? "text-ink" : "text-muted hover:text-ink"}`} aria-current={active ? "page" : undefined}>
                 {item.label}
               </Link>
             );
           })}
+          <Link href="/developpeur" className={`text-sm ${pathname.startsWith("/developpeur") ? "font-semibold text-ink" : "text-muted hover:text-ink"}`}>
+            Développeur
+          </Link>
         </nav>
 
         <div className="flex items-center gap-2">
-          <AccountLink />
-          {profile.cvUrl ? (
-            <Link href={profile.cvUrl} className="btn btn-line hidden h-10 min-h-0 px-3 sm:inline-flex">
-              CV
-            </Link>
-          ) : null}
+          <Link href="/recherche" className="grid h-10 w-10 place-items-center text-ink" aria-label="Rechercher">
+            <Search size={18} />
+          </Link>
+          <Link href="/notifications" className="grid h-10 w-10 place-items-center text-ink" aria-label="Notifications">
+            <Bell size={18} />
+          </Link>
+          <div className="hidden sm:block">
+            <CreateMenu />
+          </div>
+          <AccountLink className="hidden h-10 items-center px-2 text-sm font-semibold text-ink sm:inline-flex" />
           <button
             type="button"
-            className="grid h-10 w-10 place-items-center border border-line lg:hidden"
+            className="grid h-10 w-10 place-items-center border border-line md:hidden"
             aria-expanded={open}
             aria-controls="mobile-nav"
             aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
@@ -76,33 +78,23 @@ export function Navbar() {
       </div>
 
       {open ? (
-        <nav id="mobile-nav" className="border-t border-line bg-bg lg:hidden" aria-label="Mobile">
-          <ul className="mx-auto flex max-w-6xl flex-col px-4 py-4 sm:px-6">
-            {navItems.map((item) => (
+        <nav id="mobile-nav" className="border-t border-line bg-white md:hidden" aria-label="Mobile">
+          <ul className="mx-auto flex max-w-5xl flex-col px-4 py-3">
+            {socialNav.map((item) => (
               <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className="block border-b border-line py-3 text-lg"
-                  onClick={closeAfterNavigation}
-                >
+                <Link href={item.href} className="block py-3 text-lg font-semibold" onClick={closeAfterNavigation}>
                   {item.label}
                 </Link>
               </li>
             ))}
-            {profile.cvUrl ? (
-              <li>
-                <Link
-                  href={profile.cvUrl}
-                  className="block py-3 text-lg"
-                  onClick={closeAfterNavigation}
-                >
-                  CV
+            <li className="mt-2 border-t border-line pt-2 text-xs font-bold uppercase tracking-wide text-muted">Le développeur</li>
+            {developerNav.map((item) => (
+              <li key={item.href}>
+                <Link href={item.href} className="block py-2 text-base" onClick={closeAfterNavigation}>
+                  {item.label}
                 </Link>
               </li>
-            ) : null}
-            <li onClick={closeAfterNavigation}>
-              <AccountLink className="block py-3 text-lg" />
-            </li>
+            ))}
           </ul>
         </nav>
       ) : null}

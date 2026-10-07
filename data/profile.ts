@@ -24,5 +24,7 @@ export function whatsappLink(phone: string, explicit: string) {
   return digits ? `https://wa.me/${digits}` : "";
 }
 
+export const socialUsername = "tygee";
+
 export const siteDescription =
-  "Portfolio de Therry Adler Jérôme, développeur en formation orienté Software Development. Projets web concrets avec Next.js, React, TypeScript et Supabase.";
+  "TY Space est un réseau social pour publier des twits, des photos, des vidéos courtes et des articles. L'espace du développeur Therry Adler Jérôme y présente aussi ses projets.";

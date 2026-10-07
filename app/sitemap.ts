@@ -10,7 +10,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const media = await listMedia({ publishedOnly: true });
 
   return [
-    { url: site, lastModified: new Date(), changeFrequency: "monthly", priority: 1 },
+    { url: site, lastModified: new Date(), changeFrequency: "daily", priority: 1 },
+    { url: `${site}/decouvrir`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
+    { url: `${site}/articles`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
+    { url: `${site}/communautes`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.7 },
+    { url: `${site}/developpeur`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
     { url: `${site}/blog`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
     { url: `${site}/media`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
     { url: `${site}/realisations`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },

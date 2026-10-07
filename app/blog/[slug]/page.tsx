@@ -1,20 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArticleContent } from "@/components/blog/ArticleContent";
-import { ArticleHeader } from "@/components/blog/ArticleHeader";
-import { ArticleShare } from "@/components/blog/ArticleShare";
-import { RelatedArticles } from "@/components/blog/BlogCards";
-import { Container } from "@/components/layout/Section";
+import { ArticleFrame } from "@/components/journal/ArticleFrame";
 import { Engagement } from "@/components/social/Engagement";
 import { profile } from "@/data/profile";
-import {
-  getAdjacentPosts,
-  getPostBySlug,
-  getPublishedPosts,
-  getRelatedPosts,
-  readingMinutes,
-} from "@/lib/blog/posts";
+import { formatDate } from "@/lib/format";
+import { loadJournal } from "@/lib/journal/items";
+import { getPostBySlug, getPublishedPosts, readingMinutes } from "@/lib/blog/posts";
 import { getSiteUrl } from "@/lib/site";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -57,9 +49,15 @@ export default async function ArticlePage({ params }: Props) {
   const post = await getPostBySlug(slug);
   if (!post) notFound();
 
-  const [related, adjacent] = await Promise.all([getRelatedPosts(post), getAdjacentPosts(slug)]);
   const url = `${getSiteUrl()}/blog/${post.slug}`;
   const minutes = readingMinutes(post.content);
+  const published = post.publishedAt || post.updatedAt;
+  const journal = await loadJournal();
+  const index = journal.findIndex((item) => item.href === `/blog/${post.slug}`);
+  const related = [
+    ...journal.filter((item) => item.href !== `/blog/${post.slug}` && item.category === post.category),
+    ...journal.filter((item) => item.href !== `/blog/${post.slug}` && item.category !== post.category),
+  ].slice(0, 5);
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
@@ -72,42 +70,34 @@ export default async function ArticlePage({ params }: Props) {
   };
 
   return (
-    <Container className="py-16">
+    <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <ArticleHeader post={post} minutes={minutes} />
-      {post.demo ? (
-        <p className="mx-auto mt-6 max-w-3xl border border-accent px-4 py-3 text-sm leading-6 text-muted">
-          Article de démonstration. Ce texte n&apos;est pas un retour d&apos;expérience réel : il sert à
-          montrer le blog et sera remplacé.
-        </p>
-      ) : null}
-      <div className="mx-auto mt-8 max-w-3xl">
-        <ArticleShare title={post.title} url={url} />
-        <div className="mt-8">
-          <ArticleContent content={post.content} />
-        </div>
-        <div className="mt-10">
-          <ArticleShare title={post.title} url={url} />
-        </div>
-        <Engagement type="article" id={post.slug} path={`/blog/${post.slug}`} />
-      </div>
-      <nav className="mx-auto mt-12 grid max-w-3xl gap-4 border-t border-line pt-8 sm:grid-cols-2" aria-label="Articles voisins">
-        {adjacent.previous ? (
-          <Link href={`/blog/${adjacent.previous.slug}`} className="border border-line p-4">
-            <span className="text-xs text-muted">Précédent</span>
-            <span className="mt-2 block text-ink">{adjacent.previous.title}</span>
-          </Link>
-        ) : (
-          <span />
-        )}
-        {adjacent.next ? (
-          <Link href={`/blog/${adjacent.next.slug}`} className="border border-line p-4 sm:text-right">
-            <span className="text-xs text-muted">Suivant</span>
-            <span className="mt-2 block text-ink">{adjacent.next.title}</span>
-          </Link>
+      <ArticleFrame
+        category={post.category}
+        title={post.title}
+        author={profile.name}
+        authorHref="/developpeur"
+        date={published}
+        dateLabel={formatDate(published)}
+        minutes={minutes}
+        shareUrl={url}
+        cover={post.coverImage}
+        excerpt={post.excerpt}
+        previous={index >= 0 && journal[index + 1] ? { href: journal[index + 1].href, title: journal[index + 1].title } : null}
+        next={index > 0 ? { href: journal[index - 1].href, title: journal[index - 1].title } : null}
+        related={related}
+      >
+        {post.demo ? (
+          <p className="mb-6 border border-accent px-4 py-3 text-sm leading-6 text-muted">
+            Article de démonstration. Ce texte n&apos;est pas un retour d&apos;expérience réel : il sert à montrer le
+            blog et sera remplacé.
+          </p>
         ) : null}
-      </nav>
-      <RelatedArticles posts={related} />
-    </Container>
+        <ArticleContent content={post.content} />
+        <div className="mt-8">
+          <Engagement type="article" id={post.slug} path={`/blog/${post.slug}`} />
+        </div>
+      </ArticleFrame>
+    </>
   );
 }

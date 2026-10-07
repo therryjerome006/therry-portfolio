@@ -125,6 +125,8 @@ export type PublicProfile = {
   username: string;
   bio: string;
   avatarUrl: string;
+  interests: string;
+  isAdmin: boolean;
   createdAt: string;
 };
 
@@ -133,7 +135,7 @@ export async function getProfileByUsername(username: string) {
   if (!supabase) return null;
   const { data } = await supabase
     .from("profiles")
-    .select("id, display_name, username, bio, avatar_url, created_at")
+    .select("id, display_name, username, bio, avatar_url, interests, is_admin, created_at")
     .eq("username", username.toLowerCase())
     .maybeSingle();
   if (!data) return null;
@@ -143,6 +145,8 @@ export async function getProfileByUsername(username: string) {
     username: data.username,
     bio: data.bio,
     avatarUrl: data.avatar_url,
+    interests: data.interests ?? "",
+    isAdmin: Boolean(data.is_admin),
     createdAt: data.created_at,
   } satisfies PublicProfile;
 }
@@ -156,7 +160,7 @@ export async function getOwnProfile() {
   if (!profile) return null;
   const { data } = await supabase
     .from("profiles")
-    .select("id, display_name, username, bio, avatar_url, created_at")
+    .select("id, display_name, username, bio, avatar_url, interests, is_admin, created_at")
     .eq("id", userId)
     .maybeSingle();
   if (!data) return null;
@@ -166,6 +170,8 @@ export async function getOwnProfile() {
     username: data.username,
     bio: data.bio,
     avatarUrl: data.avatar_url,
+    interests: data.interests ?? "",
+    isAdmin: Boolean(data.is_admin),
     createdAt: data.created_at,
   } satisfies PublicProfile;
 }

@@ -1,3 +1,5 @@
+# Le même dépôt Next.js se déploie sur Vercel et sur Netlify.
+# Vercel ignore ce fichier. Netlify l'utilise pour le scan des secrets.
 # Les variables NEXT_PUBLIC_* sont publiques : Next.js les inscrit dans le
 # JavaScript envoyé au navigateur. Le cache Turbopack les contient aussi pendant
 # le build, et ce cache n’est pas publié. On n’exclut pas les secrets serveur.
