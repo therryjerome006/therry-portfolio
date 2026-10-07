@@ -134,7 +134,7 @@ create table if not exists public.saves (
 create table if not exists public.reports (
   id uuid primary key default gen_random_uuid(),
   reporter_id uuid not null references public.profiles (id) on delete cascade,
-  target_type text not null check (target_type in ('post', 'comment', 'article', 'photo', 'video', 'profile')),
+  target_type text not null check (target_type in ('post', 'comment', 'article', 'photo', 'video', 'profile', 'group')),
   target_id text not null check (target_id ~ '^[A-Za-z0-9-]{1,80}$'),
   reason text not null check (reason in ('spam', 'harcelement', 'insultes', 'sexuel', 'violence', 'haine', 'arnaque', 'usurpation', 'autre')),
   note text not null default '' check (char_length(note) <= 280),

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { articleCategories, audienceChoices, isReportReason } from "@/lib/network/constants";
+import { articleCategories, audienceChoices, canJoinSchool, isReportReason } from "@/lib/network/constants";
 import { buckets, deleteNetworkFile, readImage, readVideo, uploadNetworkFile } from "@/lib/network/media";
 import { explicitMessage, isExplicit } from "@/lib/network/safety";
 import { ensureProfile } from "@/lib/social/queries";
@@ -37,11 +37,23 @@ function cleanSchoolName(value: string) {
   return { name } as const;
 }
 
+function cleanSchoolNote(value: string) {
+  const note = value.trim().replace(/\s+/g, " ").slice(0, 160);
+  if (!note) return { note: "" } as const;
+  if (note.length < 2 || !/^[\p{L}\p{N}][\p{L}\p{N} '&.,()\-]{1,159}$/u.test(note)) return { error: "Précisez l'établissement sans adresse." } as const;
+  if (isExplicit(note)) return { error: explicitMessage } as const;
+  return { note } as const;
+}
+
 function publicationError(message: string, fallback: string) {
-  if (message.includes("explicites")) return explicitMessage;
+  if (message.includes("explicites") || message.includes("Ce nom")) return explicitMessage;
   if (message.includes("tranche")) return "Cette tranche d'âge ne peut pas être choisie.";
-  if (message.includes("insigne") || message.includes("école")) return "L'insigne de l'école ne peut pas être utilisé ici.";
   if (message.includes("12 à 22")) return "Les groupes d'écoles sont réservés aux 12 à 22 ans.";
+  if (message.includes("gérant")) return "Le gérant principal reste responsable de l'établissement.";
+  if (message.includes("réservé")) return "Ce nom est réservé aux établissements.";
+  if (message.includes("administrateur")) return "L'administrateur du groupe reste responsable.";
+  if (message.includes("n'accepte pas")) return "Ce groupe n'accepte plus de membres.";
+  if (message.includes("insigne")) return "L'insigne de l'école ne peut pas être utilisé ici.";
   return fallback;
 }
 
@@ -195,7 +207,7 @@ export async function toggleSave(postId: string): Promise<ActionState> {
 }
 
 export async function reportContent(targetType: string, targetId: string, reason: string, note: string): Promise<ActionState> {
-  const allowed = ["post", "comment", "article", "photo", "video", "profile"];
+  const allowed = ["post", "comment", "article", "photo", "video", "profile", "group"];
   if (!allowed.includes(targetType) || !/^[A-Za-z0-9-]{1,80}$/.test(targetId) || !isReportReason(reason)) {
     return { error: "Signalement incomplet." };
   }
@@ -273,16 +285,20 @@ export async function createArticle(formData: FormData): Promise<ActionState> {
 
 async function leaveOtherSchools(userId: string, schoolId: string, supabase: NonNullable<Awaited<ReturnType<typeof createClient>>>) {
   const school = await supabase.from("schools").select("group_id").eq("id", schoolId).maybeSingle();
-  if (!school.data) return;
+  if (!school.data) return false;
   const group = await supabase.from("community_groups").select("community_id").eq("id", school.data.group_id).maybeSingle();
-  if (!group.data) return;
+  if (!group.data) return false;
   const groups = await supabase.from("community_groups").select("id").eq("community_id", group.data.community_id);
   const groupIds = (groups.data ?? []).map((row) => row.id);
-  if (groupIds.length === 0) return;
+  if (groupIds.length === 0) return false;
   const schools = await supabase.from("schools").select("id").in("group_id", groupIds);
-  const ids = (schools.data ?? []).map((row) => row.id).filter((id) => id !== schoolId);
-  if (ids.length === 0) return;
-  await supabase.from("school_members").delete().eq("user_id", userId).in("school_id", ids);
+  const ids = (schools.data ?? []).map((row) => row.id);
+  if (ids.length === 0) return false;
+  const memberships = await supabase.from("school_members").select("school_id, role").eq("user_id", userId).in("school_id", ids);
+  if ((memberships.data ?? []).some((row) => row.role === "manager" && row.school_id !== schoolId)) return true;
+  const removable = (memberships.data ?? []).filter((row) => row.role !== "manager" && row.school_id !== schoolId).map((row) => row.school_id);
+  if (removable.length > 0) await supabase.from("school_members").delete().eq("user_id", userId).in("school_id", removable);
+  return false;
 }
 
 export async function joinSchool(schoolId: string, slug: string): Promise<ActionState> {
@@ -290,8 +306,10 @@ export async function joinSchool(schoolId: string, slug: string): Promise<Action
   const current = await session();
   if ("error" in current) return { error: current.error };
   if (!("userId" in current) || !current.userId) return { auth: true };
-  await leaveOtherSchools(current.userId, schoolId, current.supabase);
-  const { error } = await current.supabase.from("school_members").insert({ user_id: current.userId, school_id: schoolId });
+  if (!canJoinSchool(current.ageBand)) return { error: "Les groupes d'écoles sont réservés aux 12 à 22 ans." };
+  const blocked = await leaveOtherSchools(current.userId, schoolId, current.supabase);
+  if (blocked) return { error: "Vous êtes déjà gérant d'un établissement dans cette communauté." };
+  const { error } = await current.supabase.from("school_members").insert({ user_id: current.userId, school_id: schoolId, role: "member" });
   if (error && error.code !== "23505") return { error: publicationError(error.message, "L'inscription à l'école a échoué.") };
   revalidatePath(`/communautes/${slug}`);
   revalidatePath("/publier");
@@ -303,6 +321,8 @@ export async function leaveSchool(schoolId: string, slug: string): Promise<Actio
   const current = await session();
   if ("error" in current) return { error: current.error };
   if (!("userId" in current) || !current.userId) return { auth: true };
+  const membership = await current.supabase.from("school_members").select("role").eq("user_id", current.userId).eq("school_id", schoolId).maybeSingle();
+  if (membership.data?.role === "manager") return { error: "Le gérant principal reste responsable de l'établissement." };
   const { error } = await current.supabase.from("school_members").delete().eq("user_id", current.userId).eq("school_id", schoolId);
   if (error) return { error: "Vous n'avez pas pu quitter cette école." };
   revalidatePath(`/communautes/${slug}`);
@@ -310,26 +330,134 @@ export async function leaveSchool(schoolId: string, slug: string): Promise<Actio
   return {};
 }
 
-export async function addSchool(groupId: string, name: string, slug: string): Promise<ActionState> {
+export async function requestSchool(groupId: string, name: string, note: string, slug: string): Promise<ActionState> {
   if (!/^[0-9a-f-]{36}$/i.test(groupId) || !/^[a-z0-9-]{2,40}$/.test(slug)) return { error: "Groupe inconnu." };
   const cleaned = cleanSchoolName(name);
   if ("error" in cleaned) return cleaned;
+  const details = cleanSchoolNote(note);
+  if ("error" in details) return details;
   const current = await session();
   if ("error" in current) return { error: current.error };
   if (!("userId" in current) || !current.userId) return { auth: true };
-  const existing = await current.supabase.from("schools").select("id, name").eq("group_id", groupId);
-  let schoolId = existing.data?.find((row) => row.name.toLowerCase() === cleaned.name.toLowerCase())?.id ?? "";
-  if (!schoolId) {
-    const created = await current.supabase.from("schools").insert({ group_id: groupId, name: cleaned.name }).select("id").single();
-    if (created.error || !created.data) {
-      const again = await current.supabase.from("schools").select("id, name").eq("group_id", groupId);
-      schoolId = again.data?.find((row) => row.name.toLowerCase() === cleaned.name.toLowerCase())?.id ?? "";
-      if (!schoolId) return { error: publicationError(created.error?.message ?? "", "L'école n'a pas pu être ajoutée.") };
-    } else {
-      schoolId = created.data.id;
+  if (!canJoinSchool(current.ageBand)) return { error: "Les groupes d'écoles sont réservés aux 12 à 22 ans." };
+  const schools = await current.supabase.from("schools").select("id, name").eq("group_id", groupId);
+  if ((schools.data ?? []).some((row) => row.name.toLowerCase() === cleaned.name.toLowerCase())) {
+    return { error: "Cet établissement est déjà ouvert. Rejoignez-le dans la liste." };
+  }
+  const schoolIds = (schools.data ?? []).map((row) => row.id);
+  if (schoolIds.length > 0) {
+    const memberships = await current.supabase.from("school_members").select("role").eq("user_id", current.userId).in("school_id", schoolIds);
+    if ((memberships.data ?? []).some((row) => row.role === "manager")) {
+      return { error: "Vous êtes déjà gérant d'un établissement dans cette communauté." };
     }
   }
-  return joinSchool(schoolId, slug);
+  const { error } = await current.supabase.from("school_requests").insert({
+    user_id: current.userId,
+    group_id: groupId,
+    name: cleaned.name,
+    note: details.note,
+    status: "pending",
+  });
+  if (error) {
+    if (error.code === "23505") return { error: "Une demande est déjà en cours." };
+    return { error: publicationError(error.message, "La demande n'a pas pu être envoyée.") };
+  }
+  revalidatePath(`/communautes/${slug}`);
+  revalidatePath("/admin/reseau");
+  return {};
+}
+
+function groupSlug(name: string) {
+  const base = name
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 32);
+  if (base.length < 2 || base === "ecoles") return "";
+  return base;
+}
+
+function cleanGroupName(value: string) {
+  const name = value.trim().replace(/\s+/g, " ").slice(0, 40);
+  if (name.length < 2) return { error: "Indiquez le nom du groupe." } as const;
+  if (!/^[\p{L}\p{N}][\p{L}\p{N} '&.,()\-]{1,39}$/u.test(name)) return { error: "Utilisez un nom de groupe." } as const;
+  if (isExplicit(name)) return { error: explicitMessage } as const;
+  if (name.toLowerCase() === "écoles" || name.toLowerCase() === "ecoles") return { error: "Ce nom est réservé aux établissements." } as const;
+  return { name } as const;
+}
+
+export async function createGroup(communityId: string, name: string, slug: string): Promise<ActionState> {
+  if (!/^[0-9a-f-]{36}$/i.test(communityId) || !/^[a-z0-9-]{2,40}$/.test(slug)) return { error: "Communauté inconnue." };
+  const cleaned = cleanGroupName(name);
+  if ("error" in cleaned) return cleaned;
+  const base = groupSlug(cleaned.name);
+  if (!base) return { error: "Choisissez un autre nom de groupe." };
+  const current = await session();
+  if ("error" in current) return { error: current.error };
+  if (!("userId" in current) || !current.userId) return { auth: true };
+  const existing = await current.supabase.from("community_groups").select("slug, name, status").eq("community_id", communityId);
+  if ((existing.data ?? []).some((row) => row.status === "open" && row.name.toLowerCase() === cleaned.name.toLowerCase())) {
+    return { error: "Un groupe porte déjà ce nom." };
+  }
+  const taken = new Set((existing.data ?? []).map((row) => row.slug));
+  let nextSlug = base;
+  for (let index = 2; taken.has(nextSlug) && index < 50; index += 1) nextSlug = `${base.slice(0, 36)}-${index}`;
+  if (taken.has(nextSlug)) return { error: "Choisissez un autre nom de groupe." };
+  const { error } = await current.supabase.from("community_groups").insert({
+    community_id: communityId,
+    slug: nextSlug,
+    name: cleaned.name,
+    kind: "member",
+    owner_id: current.userId,
+    status: "open",
+    warning: "",
+    flagged: false,
+  });
+  if (error) {
+    if (error.code === "23505") return { error: "Un groupe porte déjà ce nom." };
+    return { error: publicationError(error.message, "Le groupe n'a pas pu être créé.") };
+  }
+  revalidatePath(`/communautes/${slug}`);
+  revalidatePath("/admin/reseau");
+  return {};
+}
+
+export async function joinGroup(groupId: string, slug: string): Promise<ActionState> {
+  if (!/^[0-9a-f-]{36}$/i.test(groupId) || !/^[a-z0-9-]{2,40}$/.test(slug)) return { error: "Groupe inconnu." };
+  const current = await session();
+  if ("error" in current) return { error: current.error };
+  if (!("userId" in current) || !current.userId) return { auth: true };
+  const { error } = await current.supabase.from("group_members").insert({ group_id: groupId, user_id: current.userId, role: "member" });
+  if (error && error.code !== "23505") return { error: publicationError(error.message, "L'inscription au groupe a échoué.") };
+  revalidatePath(`/communautes/${slug}`);
+  return {};
+}
+
+export async function leaveGroup(groupId: string, slug: string): Promise<ActionState> {
+  if (!/^[0-9a-f-]{36}$/i.test(groupId) || !/^[a-z0-9-]{2,40}$/.test(slug)) return { error: "Groupe inconnu." };
+  const current = await session();
+  if ("error" in current) return { error: current.error };
+  if (!("userId" in current) || !current.userId) return { auth: true };
+  const membership = await current.supabase.from("group_members").select("role").eq("group_id", groupId).eq("user_id", current.userId).maybeSingle();
+  if (membership.data?.role === "admin") return { error: "L'administrateur du groupe reste responsable." };
+  const { error } = await current.supabase.from("group_members").delete().eq("group_id", groupId).eq("user_id", current.userId);
+  if (error) return { error: "Vous n'avez pas pu quitter ce groupe." };
+  revalidatePath(`/communautes/${slug}`);
+  return {};
+}
+
+export async function removeGroupMember(groupId: string, memberId: string, slug: string): Promise<ActionState> {
+  if (!/^[0-9a-f-]{36}$/i.test(groupId) || !/^[0-9a-f-]{36}$/i.test(memberId) || !/^[a-z0-9-]{2,40}$/.test(slug)) return { error: "Membre inconnu." };
+  const current = await session();
+  if ("error" in current) return { error: current.error };
+  if (!("userId" in current) || !current.userId) return { auth: true };
+  if (memberId === current.userId) return { error: "L'administrateur du groupe reste responsable." };
+  const { error } = await current.supabase.from("group_members").delete().eq("group_id", groupId).eq("user_id", memberId).eq("role", "member");
+  if (error) return { error: "Ce membre n'a pas pu être retiré." };
+  revalidatePath(`/communautes/${slug}`);
+  return {};
 }
 
 export async function markNotificationsRead() {

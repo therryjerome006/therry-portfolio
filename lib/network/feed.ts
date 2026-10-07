@@ -213,25 +213,40 @@ export async function communityCounts(communityId: string, userId: string | null
 export type CommunityGroup = {
   id: string;
   name: string;
-  schools: { id: string; name: string; members: number }[];
-  mine: { id: string; name: string } | null;
+  schools: { id: string; name: string; members: number; managerName: string | null }[];
+  mine: { id: string; name: string; role: "member" | "manager" } | null;
+  pendingName: string | null;
 };
 
 export async function loadCommunityGroups(communityId: string, userId: string | null) {
   const supabase = await createClient();
   if (!supabase) return [] as CommunityGroup[];
-  const { data: groups } = await supabase.from("community_groups").select("id, name").eq("community_id", communityId).order("name");
+  const { data: groups } = await supabase.from("community_groups").select("id, name").eq("community_id", communityId).eq("kind", "schools").order("name");
   if (!groups?.length) return [] as CommunityGroup[];
   const { data: schools } = await supabase.from("schools").select("id, name, group_id").in("group_id", groups.map((group) => group.id)).order("name");
   const schoolIds = (schools ?? []).map((school) => school.id);
   const { data: members } = schoolIds.length
-    ? await supabase.from("school_members").select("school_id, user_id").in("school_id", schoolIds)
-    : { data: [] as { school_id: string; user_id: string }[] };
+    ? await supabase.from("school_members").select("school_id, user_id, role").in("school_id", schoolIds)
+    : { data: [] as { school_id: string; user_id: string; role: string }[] };
+  const managerIds = [...new Set((members ?? []).filter((member) => member.role === "manager").map((member) => member.user_id))];
+  const { data: managers } = managerIds.length
+    ? await supabase.from("profiles").select("id, display_name").in("id", managerIds)
+    : { data: [] as { id: string; display_name: string }[] };
+  const managerNameByUser = new Map((managers ?? []).map((person) => [person.id, person.display_name]));
+  const { data: requests } = userId
+    ? await supabase.from("school_requests").select("group_id, name").eq("user_id", userId).eq("status", "pending").in("group_id", groups.map((group) => group.id))
+    : { data: [] as { group_id: string; name: string }[] };
   const counts = new Map<string, number>();
+  const managerBySchool = new Map<string, string>();
   let mineId = "";
+  let mineRole: "member" | "manager" = "member";
   for (const member of members ?? []) {
     counts.set(member.school_id, (counts.get(member.school_id) ?? 0) + 1);
-    if (userId && member.user_id === userId) mineId = member.school_id;
+    if (member.role === "manager") managerBySchool.set(member.school_id, managerNameByUser.get(member.user_id) || "Gérant");
+    if (userId && member.user_id === userId) {
+      mineId = member.school_id;
+      mineRole = member.role === "manager" ? "manager" : "member";
+    }
   }
   return groups.map((group) => {
     const list = (schools ?? []).filter((school) => school.group_id === group.id);
@@ -239,9 +254,61 @@ export async function loadCommunityGroups(communityId: string, userId: string | 
     return {
       id: group.id,
       name: group.name,
-      schools: list.map((school) => ({ id: school.id, name: school.name, members: counts.get(school.id) ?? 0 })),
-      mine: mine ? { id: mine.id, name: mine.name } : null,
+      schools: list.map((school) => ({
+        id: school.id,
+        name: school.name,
+        members: counts.get(school.id) ?? 0,
+        managerName: managerBySchool.get(school.id) ?? null,
+      })),
+      mine: mine ? { id: mine.id, name: mine.name, role: mineRole } : null,
+      pendingName: (requests ?? []).find((request) => request.group_id === group.id)?.name ?? null,
     };
+  });
+}
+
+export type MemberGroup = {
+  id: string;
+  name: string;
+  status: "open" | "closed";
+  warning: string;
+  ownerName: string;
+  members: number;
+  mine: "admin" | "member" | null;
+  people: { id: string; name: string }[];
+};
+
+export async function loadMemberGroups(communityId: string, userId: string | null) {
+  const supabase = await createClient();
+  if (!supabase) return [] as MemberGroup[];
+  const { data: groups } = await supabase
+    .from("community_groups")
+    .select("id, name, status, warning, owner_id")
+    .eq("community_id", communityId)
+    .eq("kind", "member")
+    .order("name");
+  if (!groups?.length) return [] as MemberGroup[];
+  const groupIds = groups.map((group) => group.id);
+  const { data: memberships } = await supabase.from("group_members").select("group_id, user_id, role").in("group_id", groupIds);
+  const peopleIds = [...new Set((memberships ?? []).map((member) => member.user_id))];
+  const { data: people } = peopleIds.length
+    ? await supabase.from("profiles").select("id, display_name").in("id", peopleIds)
+    : { data: [] as { id: string; display_name: string }[] };
+  const nameById = new Map((people ?? []).map((person) => [person.id, person.display_name]));
+  return groups.flatMap((group) => {
+    const rows = (memberships ?? []).filter((member) => member.group_id === group.id);
+    const mine = rows.find((member) => member.user_id === userId);
+    if (group.status === "closed" && !mine) return [];
+    const role: MemberGroup["mine"] = mine?.role === "admin" ? "admin" : mine ? "member" : null;
+    return [{
+      id: group.id,
+      name: group.name,
+      status: group.status === "closed" ? "closed" as const : "open" as const,
+      warning: group.warning || "",
+      ownerName: nameById.get(group.owner_id) || "Administrateur",
+      members: rows.length,
+      mine: role,
+      people: role === "admin" ? rows.filter((member) => member.role !== "admin").map((member) => ({ id: member.user_id, name: nameById.get(member.user_id) || "Membre" })) : [],
+    }];
   });
 }
 

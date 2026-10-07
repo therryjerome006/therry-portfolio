@@ -1,10 +1,28 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/session";
-import { reviewReport, setSuspension } from "@/lib/actions/moderation";
+import { moderateMemberGroup, reviewReport, reviewSchoolRequest, setSuspension } from "@/lib/actions/moderation";
 import { dbPool } from "@/lib/media/db";
 import { reportReasons } from "@/lib/network/constants";
 
 export const dynamic = "force-dynamic";
+
+const requestNotices: Record<string, string> = {
+  creee: "Établissement créé. Le demandeur en est le gérant principal.",
+  rejetee: "Demande refusée.",
+  doublon: "Un établissement porte déjà ce nom. Aucun second groupe n'a été créé.",
+  gerant: "Cette personne gère déjà un établissement dans cette communauté.",
+  absente: "Cette demande n'est plus en attente.",
+  erreur: "La décision n'a pas pu être enregistrée.",
+};
+
+const groupNotices: Record<string, string> = {
+  ferme: "Groupe fermé. Son administrateur a été prévenu.",
+  rouvert: "Groupe rouvert.",
+  signale: "Groupe signalé. Il reste visible, sous surveillance.",
+  retire: "Signalement retiré.",
+  avertissement: "Avertissement envoyé à l'administrateur du groupe.",
+  erreur: "L'action sur le groupe n'a pas pu être enregistrée.",
+};
 
 type ReportRow = {
   id: string;
@@ -17,8 +35,34 @@ type ReportRow = {
   username: string;
 };
 
-export default async function AdminNetworkPage() {
+type SchoolRequestRow = {
+  id: string;
+  name: string;
+  note: string;
+  created_at: string;
+  username: string;
+  display_name: string;
+  community: string;
+  duplicate: boolean;
+};
+
+type MemberGroupRow = {
+  id: string;
+  name: string;
+  status: string;
+  warning: string;
+  flagged: boolean;
+  community: string;
+  slug: string;
+  username: string | null;
+  display_name: string | null;
+  members: string;
+};
+
+export default async function AdminNetworkPage({ searchParams }: { searchParams: Promise<{ ecole?: string; groupe?: string }> }) {
   await requireAdmin();
+  const { ecole, groupe } = await searchParams;
+  const notice = (ecole ? requestNotices[ecole] : "") || (groupe ? groupNotices[groupe] : "");
   const db = dbPool();
   const reports = db
     ? await db.query<ReportRow>(
@@ -37,11 +81,121 @@ export default async function AdminNetworkPage() {
            (select count(*) from public.reports where status = 'pending') as reports`,
       )
     : { rows: [{ profiles: "0", posts: "0", reports: "0" }] };
+  const requests = db
+    ? await db.query<SchoolRequestRow>(
+        `select r.id, r.name, r.note, r.created_at, p.username, p.display_name, c.name as community,
+                exists (
+                  select 1 from public.schools s
+                  where s.group_id = r.group_id and lower(s.name) = lower(r.name)
+                ) as duplicate
+         from public.school_requests r
+         join public.profiles p on p.id = r.user_id
+         join public.community_groups g on g.id = r.group_id
+         join public.communities c on c.id = g.community_id
+         where r.status = 'pending'
+         order by r.created_at`,
+      )
+    : { rows: [] };
+  const memberGroups = db
+    ? await db.query<MemberGroupRow>(
+        `select g.id, g.name, g.status, g.warning, g.flagged, c.name as community, c.slug,
+                p.username, p.display_name,
+                (select count(*) from public.group_members m where m.group_id = g.id) as members
+         from public.community_groups g
+         join public.communities c on c.id = g.community_id
+         left join public.profiles p on p.id = g.owner_id
+         where g.kind = 'member'
+         order by g.created_at desc
+         limit 40`,
+      )
+    : { rows: [] };
   const stats = counts.rows[0];
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-8">
       <h1 className="text-3xl font-bold">Réseau</h1>
+      {notice ? <p className="mt-4 border border-line bg-white p-4 text-sm">{notice}</p> : null}
+      <section className="mt-6">
+        <h2 className="text-lg font-bold">Demandes d&apos;établissements</h2>
+        <p className="mt-1 text-sm leading-6 text-muted">Un établissement n&apos;existe qu&apos;après accord. Le demandeur en devient le gérant principal.</p>
+        <ul className="mt-3 grid gap-3">
+          {requests.rows.map((request) => (
+            <li key={request.id} className="border border-line bg-white p-4">
+              <p className="text-sm font-bold">{request.name}</p>
+              <p className="mt-1 text-sm text-muted">
+                {request.community} · {request.display_name} · @{request.username}
+              </p>
+              {request.note ? <p className="mt-2 text-sm">{request.note}</p> : null}
+              {request.duplicate ? <p className="mt-2 text-sm text-danger">Un établissement porte déjà ce nom.</p> : null}
+              <div className="mt-3 flex flex-wrap gap-3">
+                <form action={reviewSchoolRequest}>
+                  <input type="hidden" name="id" value={request.id} />
+                  <input type="hidden" name="decision" value="approve" />
+                  <button type="submit" className="text-sm font-semibold" disabled={request.duplicate}>
+                    Approuver
+                  </button>
+                </form>
+                <form action={reviewSchoolRequest}>
+                  <input type="hidden" name="id" value={request.id} />
+                  <input type="hidden" name="decision" value="reject" />
+                  <button type="submit" className="text-sm font-semibold text-danger">
+                    Refuser
+                  </button>
+                </form>
+              </div>
+            </li>
+          ))}
+        </ul>
+        {requests.rows.length === 0 ? <p className="mt-3 text-sm text-muted">Aucune demande en attente.</p> : null}
+      </section>
+      <section className="mt-8">
+        <h2 className="text-lg font-bold">Groupes de membres</h2>
+        <p className="mt-1 text-sm leading-6 text-muted">Ces groupes sont créés sans demande. Vous pouvez les fermer, les signaler ou envoyer un avertissement.</p>
+        <ul className="mt-3 grid gap-3">
+          {memberGroups.rows.map((group) => (
+            <li key={group.id} className="border border-line bg-white p-4">
+              <p className="text-sm font-bold">
+                {group.name}
+                {group.status === "closed" ? " · fermé" : ""}
+                {group.flagged ? " · signalé" : ""}
+              </p>
+              <p className="mt-1 text-sm text-muted">
+                {group.community} · {group.display_name || "Administrateur"}
+                {group.username ? ` · @${group.username}` : ""} · {group.members} {Number(group.members) > 1 ? "membres" : "membre"}
+              </p>
+              {group.warning ? <p className="mt-2 text-sm">Avertissement : {group.warning}</p> : null}
+              <div className="mt-3 flex flex-wrap gap-3">
+                <Link href={`/communautes/${group.slug}`} className="text-sm font-semibold">
+                  Voir
+                </Link>
+                <form action={moderateMemberGroup}>
+                  <input type="hidden" name="id" value={group.id} />
+                  <input type="hidden" name="action" value={group.status === "closed" ? "reopen" : "close"} />
+                  <button type="submit" className="text-sm font-semibold text-danger">
+                    {group.status === "closed" ? "Rouvrir" : "Fermer"}
+                  </button>
+                </form>
+                <form action={moderateMemberGroup}>
+                  <input type="hidden" name="id" value={group.id} />
+                  <input type="hidden" name="action" value={group.flagged ? "unflag" : "flag"} />
+                  <button type="submit" className="text-sm font-semibold">
+                    {group.flagged ? "Retirer le signalement" : "Signaler"}
+                  </button>
+                </form>
+              </div>
+              <form action={moderateMemberGroup} className="mt-3 grid gap-2">
+                <input type="hidden" name="id" value={group.id} />
+                <input type="hidden" name="action" value="warn" />
+                <input name="message" maxLength={280} className="field" placeholder="Avertissement pour l'administrateur" aria-label="Avertissement" />
+                <button type="submit" className="w-fit text-sm font-semibold">
+                  Envoyer l&apos;avertissement
+                </button>
+              </form>
+            </li>
+          ))}
+        </ul>
+        {memberGroups.rows.length === 0 ? <p className="mt-3 text-sm text-muted">Aucun groupe de membres.</p> : null}
+      </section>
       <div className="mt-4 grid grid-cols-3 gap-3">
         {[
           ["Membres", stats?.profiles],

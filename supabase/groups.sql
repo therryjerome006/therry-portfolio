@@ -105,7 +105,7 @@ create table if not exists public.community_groups (
   community_id uuid not null references public.communities (id) on delete cascade,
   slug text not null check (slug ~ '^[a-z0-9-]{2,40}$'),
   name text not null check (char_length(name) between 2 and 40),
-  kind text not null check (kind in ('schools')),
+  kind text not null check (kind in ('schools', 'member')),
   created_at timestamptz not null default now(),
   unique (community_id, slug)
 );
@@ -213,6 +213,14 @@ create trigger schools_guard
   before insert or update on public.schools
   for each row execute function public.guard_school();
 
+alter table public.school_members
+  add column if not exists role text not null default 'member';
+
+alter table public.school_members drop constraint if exists school_members_role_check;
+alter table public.school_members
+  add constraint school_members_role_check
+  check (role in ('member', 'manager'));
+
 create or replace function public.guard_school_member()
 returns trigger
 language plpgsql
@@ -222,6 +230,9 @@ as $$
 declare
   member_age text;
 begin
+  if auth.uid() is not null then
+    new.role := 'member';
+  end if;
   select age_band into member_age from public.profiles where id = new.user_id;
   if member_age not in ('12-15', '16-17', '18-22') then
     raise exception 'Les groupes d''écoles sont réservés aux 12 à 22 ans.';
@@ -309,15 +320,7 @@ create policy "schools are public" on public.schools
   for select to anon, authenticated using (true);
 
 drop policy if exists "users add schools" on public.schools;
-create policy "users add schools" on public.schools
-  for insert to authenticated
-  with check (
-    char_length(btrim(name)) between 2 and 80
-    and exists (
-      select 1 from public.community_groups grp
-      where grp.id = group_id and grp.kind = 'schools'
-    )
-  );
+revoke insert on public.schools from authenticated, anon;
 
 drop policy if exists "school members are public" on public.school_members;
 create policy "school members are public" on public.school_members
@@ -334,8 +337,7 @@ create policy "users leave schools" on public.school_members
   using (user_id = auth.uid());
 
 grant select on public.community_groups, public.schools, public.school_members to anon, authenticated;
-grant insert on public.schools, public.school_members to authenticated;
-grant delete on public.school_members to authenticated;
+grant insert, delete on public.school_members to authenticated;
 
 insert into public.community_groups (community_id, slug, name, kind)
 select id, 'ecoles', 'Écoles', 'schools'
