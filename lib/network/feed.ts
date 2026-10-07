@@ -1,4 +1,4 @@
-import { audienceLabel, PAGE_SIZE, type FeedTab } from "@/lib/network/constants";
+import { PAGE_SIZE, type FeedTab } from "@/lib/network/constants";
 import { createClient } from "@/lib/supabase/server";
 
 export type FeedAuthor = {
@@ -22,7 +22,6 @@ export type FeedPost = {
   communitySlug: string | null;
   communityName: string | null;
   schoolName: string | null;
-  audienceLabel: string;
   author: FeedAuthor;
   media: FeedMedia | null;
   likeCount: number;
@@ -41,7 +40,6 @@ type PostRow = {
   body: string;
   created_at: string;
   user_id: string;
-  audience: string[] | null;
   profiles: AuthorRow | AuthorRow[] | null;
   post_media: MediaRow | MediaRow[] | null;
   communities: CommunityRow | CommunityRow[] | null;
@@ -49,7 +47,7 @@ type PostRow = {
 };
 
 const postSelect =
-  "id, kind, body, created_at, user_id, audience, profiles!posts_user_id_fkey(id, username, display_name, avatar_url), post_media(url, media_type, duration), communities!posts_community_id_fkey(slug, name), schools!posts_school_id_fkey(name)";
+  "id, kind, body, created_at, user_id, profiles!posts_user_id_fkey(id, username, display_name, avatar_url), post_media(url, media_type, duration), communities!posts_community_id_fkey(slug, name), schools!posts_school_id_fkey(name)";
 
 function one<T>(value: T | T[] | null) {
   return Array.isArray(value) ? value[0] ?? null : value;
@@ -68,7 +66,6 @@ function mapPost(row: PostRow, likes: Map<string, number>, comments: Map<string,
     communitySlug: community?.slug ?? null,
     communityName: community?.name ?? null,
     schoolName: school?.name ?? null,
-    audienceLabel: audienceLabel(row.audience ?? []),
     author: {
       id: author?.id || row.user_id,
       username: author?.username || "visiteur",

@@ -65,13 +65,6 @@ export function defaultAudience(ageBand: string): AgeBand[] {
   return ["18-22", "23+"];
 }
 
-export function audienceLabel(values: string[]) {
-  return ageBands
-    .filter((band) => values.includes(band.value))
-    .map((band) => band.label)
-    .join(", ");
-}
-
 export function canJoinSchool(ageBand: string) {
   return ageBand === "12-15" || ageBand === "16-17" || ageBand === "18-22";
 }
