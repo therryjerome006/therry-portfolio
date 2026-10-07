@@ -1,6 +1,7 @@
-import { MAX_IMAGE_BYTES, MAX_VIDEO_BYTES, MAX_VIDEO_SECONDS } from "@/lib/network/constants";
+import { MAX_AVATAR_BYTES, MAX_IMAGE_BYTES, MAX_VIDEO_BYTES, MAX_VIDEO_SECONDS } from "@/lib/network/constants";
 
 const buckets = {
+  avatar: "avatars",
   image: "post-images",
   video: "post-videos",
   article: "article-images",
@@ -93,6 +94,14 @@ export async function deleteNetworkFile(url: string) {
     },
     body: JSON.stringify({ prefixes: [path] }),
   });
+}
+
+export async function readAvatar(file: File) {
+  if (file.size <= 0 || file.size > MAX_AVATAR_BYTES) return { error: "La photo de profil doit faire moins de 2 Mo." } as const;
+  const body = Buffer.from(await file.arrayBuffer());
+  const mime = imageKind(body);
+  if (!mime) return { error: "Utilisez une photo JPEG, PNG ou WebP." } as const;
+  return { body, mime, extension: extensionFor(mime) } as const;
 }
 
 export async function readImage(file: File) {

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { buckets, deleteNetworkFile, readAvatar, uploadNetworkFile } from "@/lib/network/media";
 import { isContentId, isContentType, safeNext } from "@/lib/social/content";
 import { ensureProfile, loadMoreComments } from "@/lib/social/queries";
 import { createClient } from "@/lib/supabase/server";
@@ -97,21 +98,40 @@ export async function updateProfile(formData: FormData): Promise<SocialState> {
   const bio = String(formData.get("bio") ?? "").trim().slice(0, 280);
   const interests = String(formData.get("interests") ?? "").trim().slice(0, 160);
   const ageBand = String(formData.get("ageBand") ?? "");
-  const avatarUrl = String(formData.get("avatarUrl") ?? "").trim();
+  const file = formData.get("avatar");
+  const removeAvatar = formData.get("removeAvatar") === "on";
   if (!displayName) return { error: "Indiquez un nom." };
   if (!/^[a-z0-9_]{3,24}$/.test(username)) return { error: "Le nom d'utilisateur utilise 3 à 24 lettres, chiffres ou _." };
-  if (avatarUrl && !avatarUrl.startsWith("https://")) return { error: "L'avatar doit être une adresse https." };
-  const patch: { display_name: string; username: string; bio: string; interests: string; avatar_url: string; age_band?: string } = {
+  const { data: current } = await session.supabase.from("profiles").select("avatar_url").eq("id", session.userId).maybeSingle();
+  const previous = current?.avatar_url || "";
+  let uploaded = "";
+  const patch: { display_name: string; username: string; bio: string; interests: string; avatar_url?: string; age_band?: string } = {
     display_name: displayName,
     username,
     bio,
     interests,
-    avatar_url: avatarUrl,
   };
+  if (file instanceof File && file.size > 0) {
+    const parsed = await readAvatar(file);
+    if ("error" in parsed) return { error: parsed.error };
+    try {
+      uploaded = await uploadNetworkFile(buckets.avatar, `${session.userId}/${crypto.randomUUID()}.${parsed.extension}`, parsed.body, parsed.mime);
+      patch.avatar_url = uploaded;
+    } catch {
+      return { error: "L'envoi de la photo a échoué." };
+    }
+  } else if (removeAvatar) {
+    patch.avatar_url = "";
+  }
   if (["12-15", "16-17", "18-22", "23+"].includes(ageBand)) patch.age_band = ageBand;
   const { error } = await session.supabase.from("profiles").update(patch).eq("id", session.userId);
-  if (error) return { error: "Ce nom d'utilisateur est peut-être déjà pris." };
+  if (error) {
+    if (uploaded) await deleteNetworkFile(uploaded);
+    return { error: "Ce nom d'utilisateur est peut-être déjà pris." };
+  }
+  if (patch.avatar_url !== undefined && previous && previous !== patch.avatar_url) await deleteNetworkFile(previous);
   refresh("/profil");
   refresh(`/profil/${username}`);
+  refresh("/");
   return {};
 }

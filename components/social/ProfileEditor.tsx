@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ageBands } from "@/lib/network/constants";
 import { updateProfile } from "@/lib/actions/social";
@@ -11,7 +11,20 @@ export function ProfileEditor({ profile }: { profile: PublicProfile }) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
+  const [preview, setPreview] = useState(profile.avatarUrl);
+  const [remove, setRemove] = useState(false);
   const [pending, start] = useTransition();
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  function onPhoto(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setRemove(false);
+    setPreview((current) => {
+      if (current.startsWith("blob:")) URL.revokeObjectURL(current);
+      return URL.createObjectURL(file);
+    });
+  }
 
   return (
     <div className="grid gap-6">
@@ -58,10 +71,36 @@ export function ProfileEditor({ profile }: { profile: PublicProfile }) {
           </select>
         </label>
         <p className="text-xs leading-5 text-muted">La tranche d&apos;âge n&apos;est pas affichée. Elle sert à limiter les contacts entre les moins de 18 ans et les comptes de 23 ans et plus.</p>
-        <label className="grid gap-2 text-sm font-semibold">
-          Avatar (adresse https, facultatif)
-          <input name="avatarUrl" defaultValue={profile.avatarUrl} className="field" placeholder="https://" />
-        </label>
+        <div className="grid gap-3">
+          <span className="text-sm font-semibold">Photo de profil</span>
+          <span className="grid h-16 w-16 place-items-center bg-[#e4edf8] text-2xl font-bold">
+            {preview && !remove ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={preview} alt="" className="h-16 w-16 object-cover" />
+            ) : (
+              profile.displayName.slice(0, 1).toUpperCase()
+            )}
+          </span>
+          <label className="grid gap-2 text-sm font-semibold">
+            Choisir une photo
+            <input ref={fileRef} name="avatar" type="file" accept="image/jpeg,image/png,image/webp" className="text-sm" onChange={onPhoto} />
+          </label>
+          <p className="text-xs leading-5 text-muted">JPEG, PNG ou WebP, 2 Mo maximum.</p>
+          {profile.avatarUrl ? (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                name="removeAvatar"
+                type="checkbox"
+                checked={remove}
+                onChange={(event) => {
+                  setRemove(event.target.checked);
+                  if (event.target.checked && fileRef.current) fileRef.current.value = "";
+                }}
+              />
+              Retirer la photo
+            </label>
+          ) : null}
+        </div>
         {error ? <p className="text-sm text-danger">{error}</p> : null}
         {saved ? <p className="text-sm text-ink">Profil enregistré.</p> : null}
         <button type="submit" className="btn btn-primary" disabled={pending}>

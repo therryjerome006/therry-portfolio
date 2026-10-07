@@ -45,6 +45,7 @@ export const PAGE_SIZE = 8;
 export const MAX_VIDEO_SECONDS = 15;
 export const MAX_VIDEO_BYTES = 26_214_400;
 export const MAX_IMAGE_BYTES = 8_388_608;
+export const MAX_AVATAR_BYTES = 2_097_152;
 
 export function isAgeBand(value: string) {
   return ageBands.some((band) => band.value === value);
