@@ -6,7 +6,7 @@ import type { JournalItem } from "@/lib/journal/items";
 function Cover({ item, className }: { item: JournalItem; className: string }) {
   if (!item.cover) {
     return (
-      <div className={`${className} flex items-end bg-[linear-gradient(160deg,#e8f1ff,#f7fbff)] p-4`} aria-hidden="true">
+      <div className={`${className} cover-wash flex items-end bg-[linear-gradient(160deg,#e8f1ff,#f7fbff)] p-4`} aria-hidden="true">
         <span className="text-3xl font-bold text-accent">{item.category.slice(0, 1)}</span>
       </div>
     );

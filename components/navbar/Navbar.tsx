@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Bell, Menu, Search, X } from "lucide-react";
 import { CreateMenu } from "@/components/network/CreateMenu";
 import { AccountLink } from "@/components/social/AccountLink";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { developerNav, socialNav } from "@/data/navigation";
 
 export function Navbar() {
@@ -35,7 +36,7 @@ export function Navbar() {
     <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur">
       <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between gap-3 px-4">
         <Link href="/" className="flex items-center gap-2 text-ink" onClick={() => setOpen(false)}>
-          <span className="grid h-9 w-9 place-items-center bg-accent font-mono text-xs font-bold text-white">TY</span>
+          <span className="mark grid h-9 w-9 place-items-center font-mono text-xs font-bold text-white">TY</span>
           <span className="text-sm font-bold tracking-wide">TY Space</span>
         </Link>
 
@@ -54,6 +55,7 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <Link href="/recherche" className="grid h-10 w-10 place-items-center text-ink" aria-label="Rechercher">
             <Search size={18} />
           </Link>

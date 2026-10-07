@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { registerAccount } from "@/lib/actions/account";
 import { ageBands } from "@/lib/network/constants";
 import { browserClient } from "@/lib/supabase/browser";
 import { safeNext } from "@/lib/social/content";
@@ -24,13 +25,9 @@ export function AuthForm({ mode, next }: { mode: "login" | "signup" | "forgot"; 
     const form = new FormData(event.currentTarget);
     const email = String(form.get("email") ?? "").trim();
     const password = String(form.get("password") ?? "");
-    const displayName = String(form.get("displayName") ?? "").trim();
-    const ageBand = String(form.get("ageBand") ?? "");
     setPending(true);
     setError("");
     setInfo("");
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(destination)}`;
-
     if (mode === "forgot") {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/compte/mot-de-passe")}`,
@@ -42,29 +39,18 @@ export function AuthForm({ mode, next }: { mode: "login" | "signup" | "forgot"; 
     }
 
     if (mode === "signup") {
-      const { data, error: signError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: redirectTo, data: { display_name: displayName || "Visiteur", age_band: ageBand } },
-      });
-      setPending(false);
-      if (signError) {
-        setError("Le compte n'a pas pu être créé. Vérifiez l'e-mail et utilisez au moins 8 caractères.");
+      const created = await registerAccount(form);
+      if (created.error) {
+        setPending(false);
+        setError(created.error);
         return;
       }
-      if (data.session) {
-        router.push(destination);
-        router.refresh();
-        return;
-      }
-      setInfo("Compte créé. Ouvrez l'e-mail de vérification, puis connectez-vous.");
-      return;
     }
 
     const { error: signError } = await supabase.auth.signInWithPassword({ email, password });
     setPending(false);
     if (signError) {
-      setError("E-mail ou mot de passe incorrect, ou adresse pas encore vérifiée.");
+      setError(mode === "signup" ? "Le compte est créé. Réessayez de vous connecter." : "E-mail ou mot de passe incorrect.");
       return;
     }
     router.push(destination);

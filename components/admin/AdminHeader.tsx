@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ExternalLink, Menu, PenLine, SquarePen, X } from "lucide-react";
 import { logout } from "@/lib/actions/auth";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { profile } from "@/data/profile";
 
 const links = [
@@ -60,6 +61,7 @@ export function AdminHeader() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
+          <ThemeToggle />
           <Link href="/" className="btn btn-line h-10 min-h-0 px-3">
             <ExternalLink size={15} aria-hidden="true" />
             Voir le site
@@ -71,6 +73,9 @@ export function AdminHeader() {
           </form>
         </div>
 
+        <div className="md:hidden">
+          <ThemeToggle />
+        </div>
         <button
           type="button"
           className="grid h-10 w-10 place-items-center border border-line md:hidden"

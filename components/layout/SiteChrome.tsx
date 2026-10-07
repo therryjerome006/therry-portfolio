@@ -12,12 +12,19 @@ export function SiteChrome({ children }: { children: ReactNode }) {
 
   return (
     <>
-      {admin ? null : <Navbar />}
-      <main id="contenu" className={admin ? undefined : "pb-20 lg:pb-0"}>
-        {children}
-      </main>
-      {admin ? null : <BottomNav />}
-      {admin ? null : <Footer />}
+      <div className="atmosphere" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
+      <div className="relative z-10">
+        {admin ? null : <Navbar />}
+        <main id="contenu" className={admin ? undefined : "pb-20 lg:pb-0"}>
+          {children}
+        </main>
+        {admin ? null : <BottomNav />}
+        {admin ? null : <Footer />}
+      </div>
     </>
   );
 }
