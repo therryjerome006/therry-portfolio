@@ -28,9 +28,11 @@ export function PostCard({ post, detailed = false }: { post: FeedPost; detailed?
                 · <Link href={`/communautes/${post.communitySlug}`}>{post.communityName}</Link>
               </>
             ) : null}
+            {post.schoolName ? <> · Insigne {post.schoolName}</> : null}
           </p>
         </div>
       </header>
+      {post.audienceLabel ? <p className="mt-3 text-xs text-muted">Accès : {post.audienceLabel}</p> : null}
       {post.body ? <p className="mt-3 whitespace-pre-wrap text-[15px] leading-6 text-ink">{post.body}</p> : null}
       {post.media?.mediaType === "image" ? (
         <Link href={path} className="mt-3 block">

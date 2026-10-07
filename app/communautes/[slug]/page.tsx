@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { JoinButton } from "@/components/network/JoinButton";
 import { PostCard } from "@/components/network/PostCard";
-import { communityCounts, loadCommunity, loadCommunityPosts } from "@/lib/network/feed";
+import { SchoolGroup } from "@/components/network/SchoolGroup";
+import { canJoinSchool } from "@/lib/network/constants";
+import { communityCounts, loadCommunity, loadCommunityGroups, loadCommunityPosts } from "@/lib/network/feed";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -20,7 +22,13 @@ export default async function CommunityPage({ params }: Props) {
   if (!community) notFound();
   const supabase = await createClient();
   const userId = supabase ? (await supabase.auth.getUser()).data.user?.id ?? null : null;
-  const [counts, posts] = await Promise.all([communityCounts(community.id, userId), loadCommunityPosts(community.id)]);
+  const [counts, posts, groups, profile] = await Promise.all([
+    communityCounts(community.id, userId),
+    loadCommunityPosts(community.id),
+    loadCommunityGroups(community.id, userId),
+    userId && supabase ? supabase.from("profiles").select("age_band").eq("id", userId).maybeSingle() : Promise.resolve({ data: null }),
+  ]);
+  const canJoin = canJoinSchool(profile.data?.age_band || "");
 
   return (
     <div className="mx-auto w-full max-w-xl px-4 py-6">
@@ -31,6 +39,16 @@ export default async function CommunityPage({ params }: Props) {
       <div className="mt-4">
         <JoinButton communityId={community.id} joined={counts.joined} />
       </div>
+      <section className="mt-6">
+        <h2 className="text-lg font-bold">Groupes</h2>
+        <p className="mt-1 text-sm leading-6 text-muted">Vous pouvez publier dans {community.name} sans faire partie d&apos;un groupe. L&apos;insigne d&apos;une école est facultatif.</p>
+        <div className="mt-3 grid gap-3">
+          {groups.length === 0 ? <p className="text-sm text-muted">Les groupes apparaîtront ici.</p> : null}
+          {groups.map((group) => (
+            <SchoolGroup key={group.id} group={group} slug={community.slug} signedIn={Boolean(userId)} canJoin={canJoin} />
+          ))}
+        </div>
+      </section>
       <div className="mt-6 grid gap-3">
         {posts.length === 0 ? <p className="text-sm text-muted">Aucune publication dans cette communauté.</p> : null}
         {posts.map((post) => (

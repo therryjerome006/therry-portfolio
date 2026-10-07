@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { articleCategories, isReportReason } from "@/lib/network/constants";
+import { articleCategories, audienceChoices, isReportReason } from "@/lib/network/constants";
 import { buckets, deleteNetworkFile, readImage, readVideo, uploadNetworkFile } from "@/lib/network/media";
+import { explicitMessage, isExplicit } from "@/lib/network/safety";
 import { ensureProfile } from "@/lib/social/queries";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,9 +15,34 @@ async function session() {
   const { data } = await supabase.auth.getUser();
   if (!data.user) return { auth: true, supabase } as const;
   await ensureProfile(supabase, data.user.id);
-  const { data: profile } = await supabase.from("profiles").select("suspended_at").eq("id", data.user.id).maybeSingle();
+  const { data: profile } = await supabase.from("profiles").select("suspended_at, age_band").eq("id", data.user.id).maybeSingle();
   if (profile?.suspended_at) return { error: "Ce compte est suspendu." } as const;
-  return { supabase, userId: data.user.id };
+  return { supabase, userId: data.user.id, ageBand: profile?.age_band || "unknown" };
+}
+
+function chosenAudience(formData: FormData, ageBand: string) {
+  const selected = [...new Set(formData.getAll("audience").map((value) => String(value)))];
+  const allowed = new Set<string>(audienceChoices(ageBand));
+  if (selected.length === 0 || selected.some((band) => !allowed.has(band))) {
+    return { error: "Choisissez au moins une tranche d'âge autorisée." } as const;
+  }
+  return { audience: selected } as const;
+}
+
+function cleanSchoolName(value: string) {
+  const name = value.trim().replace(/\s+/g, " ").slice(0, 80);
+  if (name.length < 2) return { error: "Indiquez le nom de l'école." } as const;
+  if (!/^[\p{L}\p{N}][\p{L}\p{N} '&.,()\-]{1,79}$/u.test(name)) return { error: "Utilisez le nom de l'école." } as const;
+  if (isExplicit(name)) return { error: explicitMessage } as const;
+  return { name } as const;
+}
+
+function publicationError(message: string, fallback: string) {
+  if (message.includes("explicites")) return explicitMessage;
+  if (message.includes("tranche")) return "Cette tranche d'âge ne peut pas être choisie.";
+  if (message.includes("insigne") || message.includes("école")) return "L'insigne de l'école ne peut pas être utilisé ici.";
+  if (message.includes("12 à 22")) return "Les groupes d'écoles sont réservés aux 12 à 22 ans.";
+  return fallback;
 }
 
 function caption(value: FormDataEntryValue | null) {
@@ -32,6 +58,24 @@ export async function createPost(formData: FormData): Promise<ActionState> {
   const community = String(formData.get("community") ?? "");
   if (kind !== "text" && kind !== "photo" && kind !== "video") return { error: "Choisissez un type de publication." };
   if (kind === "text" && !body) return { error: "Écrivez votre twit." };
+  if (isExplicit(body)) return { error: explicitMessage };
+  const audience = chosenAudience(formData, current.ageBand);
+  if ("error" in audience) return audience;
+  const communityId = /^[0-9a-f-]{36}$/i.test(community) ? community : null;
+  const badge = String(formData.get("schoolBadge") ?? "");
+  let schoolId: string | null = null;
+  if (badge) {
+    if (!communityId || !/^[0-9a-f-]{36}$/i.test(badge)) return { error: "Choisissez la communauté de votre école pour publier sous son insigne." };
+    const membership = await current.supabase.from("school_members").select("school_id").eq("user_id", current.userId).eq("school_id", badge).maybeSingle();
+    const school = await current.supabase.from("schools").select("group_id").eq("id", badge).maybeSingle();
+    const group = school.data
+      ? await current.supabase.from("community_groups").select("community_id, kind").eq("id", school.data.group_id).maybeSingle()
+      : { data: null };
+    if (!membership.data || group.data?.community_id !== communityId || group.data.kind !== "schools") {
+      return { error: "L'insigne de l'école ne peut pas être utilisé ici." };
+    }
+    schoolId = badge;
+  }
 
   let media: { url: string; mediaType: "image" | "video"; mime: string; size: number; duration: number | null } | null = null;
   if (kind !== "text") {
@@ -61,13 +105,15 @@ export async function createPost(formData: FormData): Promise<ActionState> {
       user_id: current.userId,
       kind,
       body,
-      community_id: /^[0-9a-f-]{36}$/i.test(community) ? community : null,
+      community_id: communityId,
+      audience: audience.audience,
+      school_id: schoolId,
     })
     .select("id")
     .single();
   if (error || !data) {
     if (media) await deleteNetworkFile(media.url);
-    return { error: "La publication n'a pas pu être créée." };
+    return { error: publicationError(error?.message ?? "", "La publication n'a pas pu être créée.") };
   }
   if (media) {
     const saved = await current.supabase.from("post_media").insert({
@@ -195,6 +241,10 @@ export async function createArticle(formData: FormData): Promise<ActionState> {
   if (title.length < 3) return { error: "Le titre est trop court." };
   if (body.length < 20) return { error: "L'article doit contenir au moins quelques phrases." };
   if (!articleCategories.includes(category as (typeof articleCategories)[number])) return { error: "Choisissez une catégorie." };
+  if (!("ageBand" in current)) return { auth: true };
+  if (isExplicit(`${title}\n${body}\n${tags.join(" ")}`)) return { error: explicitMessage };
+  const audience = chosenAudience(formData, current.ageBand);
+  if ("error" in audience) return audience;
 
   let cover = "";
   const file = formData.get("cover");
@@ -210,15 +260,76 @@ export async function createArticle(formData: FormData): Promise<ActionState> {
 
   const { data, error } = await current.supabase
     .from("community_articles")
-    .insert({ user_id: current.userId, title, body, category, tags, cover_url: cover })
+    .insert({ user_id: current.userId, title, body, category, tags, cover_url: cover, audience: audience.audience })
     .select("id")
     .single();
   if (error || !data) {
     if (cover) await deleteNetworkFile(cover);
-    return { error: "L'article n'a pas pu être publié." };
+    return { error: publicationError(error?.message ?? "", "L'article n'a pas pu être publié.") };
   }
   revalidatePath("/articles");
   return { id: data.id };
+}
+
+async function leaveOtherSchools(userId: string, schoolId: string, supabase: NonNullable<Awaited<ReturnType<typeof createClient>>>) {
+  const school = await supabase.from("schools").select("group_id").eq("id", schoolId).maybeSingle();
+  if (!school.data) return;
+  const group = await supabase.from("community_groups").select("community_id").eq("id", school.data.group_id).maybeSingle();
+  if (!group.data) return;
+  const groups = await supabase.from("community_groups").select("id").eq("community_id", group.data.community_id);
+  const groupIds = (groups.data ?? []).map((row) => row.id);
+  if (groupIds.length === 0) return;
+  const schools = await supabase.from("schools").select("id").in("group_id", groupIds);
+  const ids = (schools.data ?? []).map((row) => row.id).filter((id) => id !== schoolId);
+  if (ids.length === 0) return;
+  await supabase.from("school_members").delete().eq("user_id", userId).in("school_id", ids);
+}
+
+export async function joinSchool(schoolId: string, slug: string): Promise<ActionState> {
+  if (!/^[0-9a-f-]{36}$/i.test(schoolId) || !/^[a-z0-9-]{2,40}$/.test(slug)) return { error: "École inconnue." };
+  const current = await session();
+  if ("error" in current) return { error: current.error };
+  if (!("userId" in current) || !current.userId) return { auth: true };
+  await leaveOtherSchools(current.userId, schoolId, current.supabase);
+  const { error } = await current.supabase.from("school_members").insert({ user_id: current.userId, school_id: schoolId });
+  if (error && error.code !== "23505") return { error: publicationError(error.message, "L'inscription à l'école a échoué.") };
+  revalidatePath(`/communautes/${slug}`);
+  revalidatePath("/publier");
+  return {};
+}
+
+export async function leaveSchool(schoolId: string, slug: string): Promise<ActionState> {
+  if (!/^[0-9a-f-]{36}$/i.test(schoolId) || !/^[a-z0-9-]{2,40}$/.test(slug)) return { error: "École inconnue." };
+  const current = await session();
+  if ("error" in current) return { error: current.error };
+  if (!("userId" in current) || !current.userId) return { auth: true };
+  const { error } = await current.supabase.from("school_members").delete().eq("user_id", current.userId).eq("school_id", schoolId);
+  if (error) return { error: "Vous n'avez pas pu quitter cette école." };
+  revalidatePath(`/communautes/${slug}`);
+  revalidatePath("/publier");
+  return {};
+}
+
+export async function addSchool(groupId: string, name: string, slug: string): Promise<ActionState> {
+  if (!/^[0-9a-f-]{36}$/i.test(groupId) || !/^[a-z0-9-]{2,40}$/.test(slug)) return { error: "Groupe inconnu." };
+  const cleaned = cleanSchoolName(name);
+  if ("error" in cleaned) return cleaned;
+  const current = await session();
+  if ("error" in current) return { error: current.error };
+  if (!("userId" in current) || !current.userId) return { auth: true };
+  const existing = await current.supabase.from("schools").select("id, name").eq("group_id", groupId);
+  let schoolId = existing.data?.find((row) => row.name.toLowerCase() === cleaned.name.toLowerCase())?.id ?? "";
+  if (!schoolId) {
+    const created = await current.supabase.from("schools").insert({ group_id: groupId, name: cleaned.name }).select("id").single();
+    if (created.error || !created.data) {
+      const again = await current.supabase.from("schools").select("id, name").eq("group_id", groupId);
+      schoolId = again.data?.find((row) => row.name.toLowerCase() === cleaned.name.toLowerCase())?.id ?? "";
+      if (!schoolId) return { error: publicationError(created.error?.message ?? "", "L'école n'a pas pu être ajoutée.") };
+    } else {
+      schoolId = created.data.id;
+    }
+  }
+  return joinSchool(schoolId, slug);
 }
 
 export async function markNotificationsRead() {

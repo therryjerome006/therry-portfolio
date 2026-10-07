@@ -47,8 +47,33 @@ export const MAX_VIDEO_BYTES = 26_214_400;
 export const MAX_IMAGE_BYTES = 8_388_608;
 export const MAX_AVATAR_BYTES = 2_097_152;
 
-export function isAgeBand(value: string) {
+export type AgeBand = (typeof ageBands)[number]["value"];
+
+export function isAgeBand(value: string): value is AgeBand {
   return ageBands.some((band) => band.value === value);
+}
+
+export function audienceChoices(ageBand: string): AgeBand[] {
+  if (ageBand === "12-15" || ageBand === "16-17") return ["12-15", "16-17"];
+  if (ageBand === "18-22") return ["12-15", "16-17", "18-22", "23+"];
+  return ["18-22", "23+"];
+}
+
+export function defaultAudience(ageBand: string): AgeBand[] {
+  if (ageBand === "12-15" || ageBand === "16-17") return ["12-15", "16-17"];
+  if (ageBand === "18-22") return ["12-15", "16-17", "18-22"];
+  return ["18-22", "23+"];
+}
+
+export function audienceLabel(values: string[]) {
+  return ageBands
+    .filter((band) => values.includes(band.value))
+    .map((band) => band.label)
+    .join(", ");
+}
+
+export function canJoinSchool(ageBand: string) {
+  return ageBand === "12-15" || ageBand === "16-17" || ageBand === "18-22";
 }
 
 export function isReportReason(value: string): value is ReportReason {

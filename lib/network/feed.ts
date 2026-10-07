@@ -1,4 +1,4 @@
-import { PAGE_SIZE, type FeedTab } from "@/lib/network/constants";
+import { audienceLabel, PAGE_SIZE, type FeedTab } from "@/lib/network/constants";
 import { createClient } from "@/lib/supabase/server";
 
 export type FeedAuthor = {
@@ -21,6 +21,8 @@ export type FeedPost = {
   createdAt: string;
   communitySlug: string | null;
   communityName: string | null;
+  schoolName: string | null;
+  audienceLabel: string;
   author: FeedAuthor;
   media: FeedMedia | null;
   likeCount: number;
@@ -32,16 +34,22 @@ export type FeedPost = {
 type AuthorRow = { id: string; username: string; display_name: string; avatar_url: string };
 type MediaRow = { url: string; media_type: "image" | "video"; duration: number | null };
 type CommunityRow = { slug: string; name: string };
+type SchoolRow = { name: string };
 type PostRow = {
   id: string;
   kind: "text" | "photo" | "video";
   body: string;
   created_at: string;
   user_id: string;
+  audience: string[] | null;
   profiles: AuthorRow | AuthorRow[] | null;
   post_media: MediaRow | MediaRow[] | null;
   communities: CommunityRow | CommunityRow[] | null;
+  schools: SchoolRow | SchoolRow[] | null;
 };
+
+const postSelect =
+  "id, kind, body, created_at, user_id, audience, profiles!posts_user_id_fkey(id, username, display_name, avatar_url), post_media(url, media_type, duration), communities!posts_community_id_fkey(slug, name), schools!posts_school_id_fkey(name)";
 
 function one<T>(value: T | T[] | null) {
   return Array.isArray(value) ? value[0] ?? null : value;
@@ -51,6 +59,7 @@ function mapPost(row: PostRow, likes: Map<string, number>, comments: Map<string,
   const author = one(row.profiles);
   const media = one(row.post_media);
   const community = one(row.communities);
+  const school = one(row.schools);
   return {
     id: row.id,
     kind: row.kind,
@@ -58,6 +67,8 @@ function mapPost(row: PostRow, likes: Map<string, number>, comments: Map<string,
     createdAt: row.created_at,
     communitySlug: community?.slug ?? null,
     communityName: community?.name ?? null,
+    schoolName: school?.name ?? null,
+    audienceLabel: audienceLabel(row.audience ?? []),
     author: {
       id: author?.id || row.user_id,
       username: author?.username || "visiteur",
@@ -99,7 +110,7 @@ export async function loadFeed(tab: FeedTab, page: number) {
   const userId = auth.user?.id ?? null;
   let query = supabase
     .from("posts")
-    .select("id, kind, body, created_at, user_id, profiles!posts_user_id_fkey(id, username, display_name, avatar_url), post_media(url, media_type, duration), communities!posts_community_id_fkey(slug, name)")
+    .select(postSelect)
     .eq("status", "published")
     .order("created_at", { ascending: false });
 
@@ -135,7 +146,7 @@ export async function loadPost(id: string) {
   if (!supabase) return null;
   const { data } = await supabase
     .from("posts")
-    .select("id, kind, body, created_at, user_id, profiles!posts_user_id_fkey(id, username, display_name, avatar_url), post_media(url, media_type, duration), communities!posts_community_id_fkey(slug, name)")
+    .select(postSelect)
     .eq("id", id)
     .maybeSingle();
   if (!data) return null;
@@ -149,7 +160,7 @@ export async function loadProfilePosts(userId: string, kind?: "photo" | "video")
   if (!supabase) return [];
   let query = supabase
     .from("posts")
-    .select("id, kind, body, created_at, user_id, profiles!posts_user_id_fkey(id, username, display_name, avatar_url), post_media(url, media_type, duration), communities!posts_community_id_fkey(slug, name)")
+    .select(postSelect)
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(24);
@@ -166,7 +177,7 @@ export async function loadCommunityPosts(communityId: string) {
   if (!supabase) return [];
   const { data } = await supabase
     .from("posts")
-    .select("id, kind, body, created_at, user_id, profiles!posts_user_id_fkey(id, username, display_name, avatar_url), post_media(url, media_type, duration), communities!posts_community_id_fkey(slug, name)")
+    .select(postSelect)
     .eq("community_id", communityId)
     .order("created_at", { ascending: false })
     .limit(20);
@@ -200,4 +211,56 @@ export async function communityCounts(communityId: string, userId: string | null
       : Promise.resolve({ data: null }),
   ]);
   return { members: members.count ?? 0, joined: Boolean(mine.data) };
+}
+
+export type CommunityGroup = {
+  id: string;
+  name: string;
+  schools: { id: string; name: string; members: number }[];
+  mine: { id: string; name: string } | null;
+};
+
+export async function loadCommunityGroups(communityId: string, userId: string | null) {
+  const supabase = await createClient();
+  if (!supabase) return [] as CommunityGroup[];
+  const { data: groups } = await supabase.from("community_groups").select("id, name").eq("community_id", communityId).order("name");
+  if (!groups?.length) return [] as CommunityGroup[];
+  const { data: schools } = await supabase.from("schools").select("id, name, group_id").in("group_id", groups.map((group) => group.id)).order("name");
+  const schoolIds = (schools ?? []).map((school) => school.id);
+  const { data: members } = schoolIds.length
+    ? await supabase.from("school_members").select("school_id, user_id").in("school_id", schoolIds)
+    : { data: [] as { school_id: string; user_id: string }[] };
+  const counts = new Map<string, number>();
+  let mineId = "";
+  for (const member of members ?? []) {
+    counts.set(member.school_id, (counts.get(member.school_id) ?? 0) + 1);
+    if (userId && member.user_id === userId) mineId = member.school_id;
+  }
+  return groups.map((group) => {
+    const list = (schools ?? []).filter((school) => school.group_id === group.id);
+    const mine = list.find((school) => school.id === mineId);
+    return {
+      id: group.id,
+      name: group.name,
+      schools: list.map((school) => ({ id: school.id, name: school.name, members: counts.get(school.id) ?? 0 })),
+      mine: mine ? { id: mine.id, name: mine.name } : null,
+    };
+  });
+}
+
+export async function loadMySchools(userId: string) {
+  const supabase = await createClient();
+  if (!supabase) return [] as { communityId: string; schoolId: string; schoolName: string }[];
+  const { data: memberships } = await supabase.from("school_members").select("school_id").eq("user_id", userId);
+  const ids = (memberships ?? []).map((row) => row.school_id);
+  if (ids.length === 0) return [];
+  const { data: schools } = await supabase.from("schools").select("id, name, group_id").in("id", ids);
+  const groupIds = [...new Set((schools ?? []).map((school) => school.group_id))];
+  const { data: groups } = await supabase.from("community_groups").select("id, community_id").in("id", groupIds);
+  const communityByGroup = new Map((groups ?? []).map((group) => [group.id, group.community_id]));
+  return (schools ?? []).flatMap((school) => {
+    const communityId = communityByGroup.get(school.group_id);
+    if (!communityId) return [];
+    return [{ communityId, schoolId: school.id, schoolName: school.name }];
+  });
 }

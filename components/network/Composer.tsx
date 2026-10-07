@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createPost } from "@/lib/actions/network";
+import { AudienceFields } from "@/components/network/AudienceFields";
+import type { AgeBand } from "@/lib/network/constants";
 
 const kinds = [
   { id: "text", label: "Twit" },
@@ -14,14 +16,22 @@ const kinds = [
 export function Composer({
   initialKind,
   communities,
+  memberships,
+  choices,
+  defaults,
 }: {
   initialKind: "text" | "photo" | "video";
   communities: { id: string; name: string }[];
+  memberships: { communityId: string; schoolId: string; schoolName: string }[];
+  choices: AgeBand[];
+  defaults: AgeBand[];
 }) {
   const router = useRouter();
   const [kind, setKind] = useState(initialKind);
+  const [communityId, setCommunityId] = useState("");
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
+  const membership = memberships.find((item) => item.communityId === communityId);
 
   return (
     <form
@@ -62,7 +72,7 @@ export function Composer({
       {communities.length > 0 ? (
         <label className="grid gap-2 text-sm font-semibold">
           Communauté
-          <select name="community" className="field" defaultValue="">
+          <select name="community" className="field" value={communityId} onChange={(event) => setCommunityId(event.target.value)}>
             <option value="">Aucune</option>
             {communities.map((community) => (
               <option key={community.id} value={community.id}>
@@ -72,6 +82,16 @@ export function Composer({
           </select>
         </label>
       ) : null}
+      {membership ? (
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="schoolBadge" value={membership.schoolId} className="mt-1" />
+          <span>
+            Publier sous l&apos;insigne de {membership.schoolName}
+            <span className="mt-1 block text-xs leading-5 text-muted">Ce n&apos;est pas obligatoire. Vous pouvez publier dans la communauté sans groupe.</span>
+          </span>
+        </label>
+      ) : null}
+      <AudienceFields choices={choices} defaults={defaults} />
       {error ? <p className="text-sm text-danger">{error}</p> : null}
       <div className="flex items-center gap-3">
         <button type="submit" className="btn btn-primary" disabled={pending}>

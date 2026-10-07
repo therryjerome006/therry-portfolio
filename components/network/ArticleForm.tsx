@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { articleCategories } from "@/lib/network/constants";
+import { articleCategories, type AgeBand } from "@/lib/network/constants";
 import { createArticle } from "@/lib/actions/network";
+import { AudienceFields } from "@/components/network/AudienceFields";
 
-export function ArticleForm() {
+export function ArticleForm({ choices, defaults }: { choices: AgeBand[]; defaults: AgeBand[] }) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
@@ -44,6 +45,7 @@ export function ArticleForm() {
         Couverture
         <input name="cover" type="file" accept="image/jpeg,image/png,image/webp" className="text-sm" />
       </label>
+      <AudienceFields choices={choices} defaults={defaults} />
       <label className="grid gap-2 text-sm font-semibold">
         Texte
         <textarea name="body" required minLength={20} maxLength={20000} rows={12} className="field" />
