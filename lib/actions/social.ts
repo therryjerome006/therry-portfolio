@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { buckets, deleteNetworkFile, readAvatar, uploadNetworkFile } from "@/lib/network/media";
+import { isExplicit, explicitMessage } from "@/lib/network/safety";
 import { isContentId, isContentType, safeNext } from "@/lib/social/content";
 import { ensureProfile, loadMoreComments } from "@/lib/social/queries";
 import { createClient } from "@/lib/supabase/server";
@@ -97,19 +99,34 @@ export async function updateProfile(formData: FormData): Promise<SocialState> {
   const username = String(formData.get("username") ?? "").trim().toLowerCase();
   const bio = String(formData.get("bio") ?? "").trim().slice(0, 280);
   const interests = String(formData.get("interests") ?? "").trim().slice(0, 160);
+  const website = cleanWebsite(String(formData.get("website") ?? ""));
   const ageBand = String(formData.get("ageBand") ?? "");
+  const showRelations = formData.get("showRelations") === "on";
   const file = formData.get("avatar");
   const removeAvatar = formData.get("removeAvatar") === "on";
   if (!displayName) return { error: "Indiquez un nom." };
   if (!/^[a-z0-9_]{3,24}$/.test(username)) return { error: "Le nom d'utilisateur utilise 3 à 24 lettres, chiffres ou _." };
-  const { data: current } = await session.supabase.from("profiles").select("avatar_url").eq("id", session.userId).maybeSingle();
+  if (reservedUsernames.has(username)) return { error: "Ce nom d'utilisateur est réservé." };
+  if (website == null) return { error: "Le lien doit commencer par https://." };
+  if (isExplicit(`${displayName} ${bio} ${interests} ${website}`)) return { error: explicitMessage };
+  const { data: current } = await session.supabase.from("profiles").select("avatar_url, username").eq("id", session.userId).maybeSingle();
   const previous = current?.avatar_url || "";
+  const previousName = String(current?.username || "");
+  if (previousName && previousName !== username) {
+    const { data: taken } = await session.supabase.from("profiles").select("id").eq("username", username).neq("id", session.userId).maybeSingle();
+    const { data: historic } = await session.supabase.from("profile_names").select("profile_id").eq("username", username).maybeSingle();
+    if (taken || (historic && historic.profile_id !== session.userId)) return { error: "Ce nom d'utilisateur est déjà utilisé." };
+    const { error: historyError } = await session.supabase.from("profile_names").insert({ username: previousName, profile_id: session.userId });
+    if (historyError) return { error: "L'ancien nom d'utilisateur n'a pas pu être conservé." };
+  }
   let uploaded = "";
-  const patch: { display_name: string; username: string; bio: string; interests: string; avatar_url?: string; age_band?: string } = {
+  const patch: { display_name: string; username: string; bio: string; interests: string; website: string; show_relations: boolean; avatar_url?: string; age_band?: string } = {
     display_name: displayName,
     username,
     bio,
     interests,
+    website,
+    show_relations: showRelations,
   };
   if (file instanceof File && file.size > 0) {
     const parsed = await readAvatar(file);
@@ -127,11 +144,64 @@ export async function updateProfile(formData: FormData): Promise<SocialState> {
   const { error } = await session.supabase.from("profiles").update(patch).eq("id", session.userId);
   if (error) {
     if (uploaded) await deleteNetworkFile(uploaded);
+    if (previousName && previousName !== username) {
+      await session.supabase.from("profile_names").delete().eq("username", previousName).eq("profile_id", session.userId);
+    }
     return { error: "Ce nom d'utilisateur est peut-être déjà pris." };
   }
   if (patch.avatar_url !== undefined && previous && previous !== patch.avatar_url) await deleteNetworkFile(previous);
   refresh("/profil");
   refresh(`/profil/${username}`);
+  refresh("/");
+  return {};
+}
+
+const reservedUsernames = new Set(["admin", "support", "officiel", "redaction", "api", "null", "profil", "compte"]);
+
+function cleanWebsite(value: string) {
+  const site = value.trim().slice(0, 120);
+  if (!site) return "";
+  try {
+    const url = new URL(site);
+    if (url.protocol !== "https:" || url.username || url.password) return null;
+    return url.toString().slice(0, 120);
+  } catch {
+    return null;
+  }
+}
+
+export async function updateOwnPost(formData: FormData): Promise<SocialState> {
+  const session = await viewer();
+  if ("error" in session) return { error: session.error };
+  if (!("userId" in session) || !session.userId) return { auth: true };
+  const id = String(formData.get("id") ?? "");
+  const body = String(formData.get("body") ?? "").trim().slice(0, 500);
+  if (!/^[0-9a-f-]{36}$/i.test(id) || body.length < 1) return { error: "Le texte doit contenir entre 1 et 500 caractères." };
+  if (isExplicit(body)) return { error: explicitMessage };
+  const { error } = await session.supabase.from("posts").update({ body }).eq("id", id).eq("user_id", session.userId).eq("kind", "text");
+  if (error) return { error: "La publication n'a pas pu être modifiée." };
+  refresh("/");
+  refresh(`/p/${id}`);
+  refresh("/profil");
+  return {};
+}
+
+export async function deleteOwnAccount(formData: FormData): Promise<SocialState> {
+  const session = await viewer();
+  if ("error" in session) return { error: session.error };
+  if (!("userId" in session) || !session.userId) return { auth: true };
+  const { data: profile } = await session.supabase.from("profiles").select("username").eq("id", session.userId).maybeSingle();
+  const username = String(profile?.username || "");
+  if (!username || String(formData.get("confirm") ?? "").trim().toLowerCase() !== username) {
+    return { error: "Écrivez votre nom d'utilisateur pour confirmer." };
+  }
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SECRET_KEY;
+  if (!url || !key) return { error: "La suppression du compte n'est pas disponible." };
+  const admin = createAdminClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+  const { error } = await admin.auth.admin.deleteUser(session.userId);
+  if (error) return { error: "Le compte n'a pas pu être supprimé." };
+  await session.supabase.auth.signOut();
   refresh("/");
   return {};
 }

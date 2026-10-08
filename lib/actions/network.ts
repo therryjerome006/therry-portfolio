@@ -170,6 +170,22 @@ export async function toggleFollow(userId: string): Promise<ActionState> {
     : await current.supabase.from("follows").insert({ follower_id: current.userId, following_id: userId });
   if (result.error) return { error: "Cette personne ne peut pas être suivie." };
   revalidatePath("/profil");
+  revalidatePath("/redaction");
+  return {};
+}
+
+export async function toggleEditorialFollow(profileId: string): Promise<ActionState> {
+  if (!/^[0-9a-f-]{36}$/i.test(profileId)) return { error: "Profil inconnu." };
+  const current = await session();
+  if ("error" in current) return { error: current.error };
+  if (!("userId" in current) || !current.userId) return { auth: true };
+  const existing = await current.supabase.from("follows").select("follower_id").eq("follower_id", current.userId).eq("editorial_id", profileId).maybeSingle();
+  const result = existing.data
+    ? await current.supabase.from("follows").delete().eq("follower_id", current.userId).eq("editorial_id", profileId)
+    : await current.supabase.from("follows").insert({ follower_id: current.userId, editorial_id: profileId });
+  if (result.error) return { error: "Ce profil ne peut pas être suivi." };
+  revalidatePath("/redaction");
+  revalidatePath("/");
   return {};
 }
 
@@ -197,17 +213,24 @@ export async function toggleSave(postId: string): Promise<ActionState> {
   const current = await session();
   if ("error" in current) return { error: current.error };
   if (!("userId" in current) || !current.userId) return { auth: true };
-  const existing = await current.supabase.from("saves").select("post_id").eq("user_id", current.userId).eq("post_id", postId).maybeSingle();
-  const result = existing.data
-    ? await current.supabase.from("saves").delete().eq("user_id", current.userId).eq("post_id", postId)
-    : await current.supabase.from("saves").insert({ user_id: current.userId, post_id: postId });
+  const editorial = await current.supabase.from("editorial_items").select("id").eq("id", postId).eq("status", "published").maybeSingle();
+  const existing = editorial.data
+    ? await current.supabase.from("saves").select("editorial_item_id").eq("user_id", current.userId).eq("editorial_item_id", postId).maybeSingle()
+    : await current.supabase.from("saves").select("post_id").eq("user_id", current.userId).eq("post_id", postId).maybeSingle();
+  const result = editorial.data
+    ? existing.data
+      ? await current.supabase.from("saves").delete().eq("user_id", current.userId).eq("editorial_item_id", postId)
+      : await current.supabase.from("saves").insert({ user_id: current.userId, editorial_item_id: postId })
+    : existing.data
+      ? await current.supabase.from("saves").delete().eq("user_id", current.userId).eq("post_id", postId)
+      : await current.supabase.from("saves").insert({ user_id: current.userId, post_id: postId });
   if (result.error) return { error: "L'enregistrement a échoué." };
   revalidatePath("/");
   return {};
 }
 
 export async function reportContent(targetType: string, targetId: string, reason: string, note: string): Promise<ActionState> {
-  const allowed = ["post", "comment", "article", "photo", "video", "profile", "group"];
+  const allowed = ["post", "comment", "article", "photo", "video", "profile", "group", "editorial"];
   if (!allowed.includes(targetType) || !/^[A-Za-z0-9-]{1,80}$/.test(targetId) || !isReportReason(reason)) {
     return { error: "Signalement incomplet." };
   }

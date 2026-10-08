@@ -16,6 +16,7 @@ export function FeedActions({
   saved,
   path,
   showLike = true,
+  canSave = true,
 }: {
   postId: string;
   kind: "text" | "photo" | "video";
@@ -25,6 +26,7 @@ export function FeedActions({
   saved: boolean;
   path: string;
   showLike?: boolean;
+  canSave?: boolean;
 }) {
   const [state, setState] = useState({ liked, likeCount, saved });
   const [prompt, setPrompt] = useState(false);
@@ -82,7 +84,7 @@ export function FeedActions({
           <Share2 size={16} />
           Partager
         </button>
-        <button
+        {canSave ? <button
           type="button"
           className={`inline-flex items-center gap-1 ${state.saved ? "text-accent" : "text-muted"}`}
           aria-pressed={state.saved}
@@ -103,7 +105,7 @@ export function FeedActions({
         >
           <Bookmark size={16} fill={state.saved ? "currentColor" : "none"} />
           Enregistrer
-        </button>
+        </button> : null}
       </div>
       <ReportButton targetType={reportType} targetId={postId} path={path} />
       {prompt ? (

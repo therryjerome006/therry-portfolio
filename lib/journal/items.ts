@@ -1,5 +1,6 @@
 import { profile } from "@/data/profile";
 import { getPublishedPosts, readingMinutes } from "@/lib/blog/posts";
+import { loadEditorialArticles } from "@/lib/editorial/public";
 import { formatDate } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
@@ -39,7 +40,7 @@ function excerptFrom(text: string) {
 
 export async function loadJournal(): Promise<JournalItem[]> {
   const supabase = await createClient();
-  const [posts, community] = await Promise.all([
+  const [posts, community, editorial] = await Promise.all([
     getPublishedPosts(),
     supabase
       ? supabase
@@ -49,6 +50,7 @@ export async function loadJournal(): Promise<JournalItem[]> {
           .order("created_at", { ascending: false })
           .limit(40)
       : Promise.resolve({ data: [] as ArticleRow[] }),
+    loadEditorialArticles(),
   ]);
 
   const blogItems: JournalItem[] = posts.map((post) => {
@@ -89,5 +91,20 @@ export async function loadJournal(): Promise<JournalItem[]> {
     };
   });
 
-  return [...blogItems, ...communityItems].sort((a, b) => (a.date < b.date ? 1 : -1));
+  const editorialItems: JournalItem[] = editorial.map((article) => ({
+    id: article.id,
+    href: `/articles/${article.id}`,
+    title: article.title,
+    excerpt: excerptFrom(article.body),
+    category: article.category,
+    cover: article.coverUrl,
+    author: article.author,
+    authorHref: article.authorHref,
+    date: article.publishedAt,
+    dateLabel: formatDate(article.publishedAt),
+    minutes: readingMinutes(article.body),
+    source: "community",
+  }));
+
+  return [...blogItems, ...communityItems, ...editorialItems].sort((a, b) => (a.date < b.date ? 1 : -1));
 }

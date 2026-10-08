@@ -25,6 +25,9 @@ export async function reviewReport(formData: FormData) {
   if (formData.get("hide") === "1" && /^[0-9a-f-]{36}$/i.test(targetId) && targetType === "article") {
     await db.query(`update public.community_articles set status = 'hidden' where id = $1`, [targetId]);
   }
+  if (formData.get("hide") === "1" && /^[0-9a-f-]{36}$/i.test(targetId) && ["post", "photo", "video", "article"].includes(targetType)) {
+    await db.query(`update public.editorial_items set status = 'hidden' where id = $1 and status = 'published'`, [targetId]);
+  }
   if (formData.get("hide") === "1" && targetType === "comment" && /^[0-9a-f-]{36}$/i.test(targetId)) {
     await db.query(`delete from public.comments where id = $1`, [targetId]);
   }

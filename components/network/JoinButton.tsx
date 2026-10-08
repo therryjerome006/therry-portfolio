@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { joinCommunity, toggleBlock, toggleFollow } from "@/lib/actions/network";
+import { joinCommunity, toggleBlock, toggleEditorialFollow, toggleFollow } from "@/lib/actions/network";
 
 export function JoinButton({ communityId, joined }: { communityId: string; joined: boolean }) {
   const router = useRouter();
@@ -30,7 +30,7 @@ export function JoinButton({ communityId, joined }: { communityId: string; joine
   );
 }
 
-export function FollowButton({ userId, following, path }: { userId: string; following: boolean; path: string }) {
+export function FollowButton({ userId, editorialId, following, path }: { userId?: string; editorialId?: string; following: boolean; path: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState("");
@@ -42,14 +42,14 @@ export function FollowButton({ userId, following, path }: { userId: string; foll
         disabled={pending}
         onClick={() =>
           start(async () => {
-            const result = await toggleFollow(userId);
+            const result = editorialId ? await toggleEditorialFollow(editorialId) : await toggleFollow(userId || "");
             if (result.auth) router.push(`/connexion?next=${encodeURIComponent(path)}`);
             else if (result.error) setError(result.error);
             else router.refresh();
           })
         }
       >
-        {following ? "Ne plus suivre" : "Suivre"}
+        {following ? (editorialId ? "Suivi" : "Ne plus suivre") : "Suivre"}
       </button>
       {error ? <p className="mt-2 text-sm text-danger">{error}</p> : null}
     </div>

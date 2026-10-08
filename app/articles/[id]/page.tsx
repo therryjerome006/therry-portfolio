@@ -5,6 +5,7 @@ import { ArticleFrame } from "@/components/journal/ArticleFrame";
 import { ReportButton } from "@/components/network/ReportButton";
 import { Engagement } from "@/components/social/Engagement";
 import { readingMinutes } from "@/lib/blog/posts";
+import { loadEditorialArticle } from "@/lib/editorial/public";
 import { formatDate } from "@/lib/format";
 import { loadJournal } from "@/lib/journal/items";
 import { getSiteUrl } from "@/lib/site";
@@ -52,7 +53,7 @@ export default async function CommunityArticlePage({ params }: Props) {
     headline: article.title,
     description,
     datePublished: article.createdAt,
-    author: { "@type": "Person", name: article.displayName },
+    author: { "@type": article.editorial ? "Organization" : "Person", name: article.displayName },
     image: article.coverUrl || undefined,
     mainEntityOfPage: `${getSiteUrl()}${path}`,
   };
@@ -64,7 +65,7 @@ export default async function CommunityArticlePage({ params }: Props) {
         category={article.category}
         title={article.title}
         author={article.displayName}
-        authorHref={article.username ? `/profil/${article.username}` : "/articles"}
+        authorHref={article.authorHref}
         date={article.createdAt}
         dateLabel={formatDate(article.createdAt)}
         minutes={readingMinutes(article.body)}
@@ -99,17 +100,22 @@ async function loadArticle(id: string) {
     .eq("id", id)
     .eq("status", "published")
     .maybeSingle();
-  if (!data) return null;
-  const author = Array.isArray(data.profiles) ? data.profiles[0] : data.profiles;
-  return {
-    id: data.id as string,
-    title: data.title as string,
-    body: data.body as string,
-    category: data.category as string,
-    tags: (data.tags as string[]) ?? [],
-    coverUrl: (data.cover_url as string) || "",
-    createdAt: data.created_at as string,
-    displayName: author?.display_name || "Membre",
-    username: author?.username || "",
-  };
+  if (data) {
+    const author = Array.isArray(data.profiles) ? data.profiles[0] : data.profiles;
+    const username = author?.username || "";
+    return {
+      id: data.id as string,
+      title: data.title as string,
+      body: data.body as string,
+      category: data.category as string,
+      tags: (data.tags as string[]) ?? [],
+      coverUrl: (data.cover_url as string) || "",
+      createdAt: data.created_at as string,
+      displayName: author?.display_name || "Membre",
+      username,
+      authorHref: username ? `/profil/${username}` : "/articles",
+      editorial: false,
+    };
+  }
+  return loadEditorialArticle(id);
 }

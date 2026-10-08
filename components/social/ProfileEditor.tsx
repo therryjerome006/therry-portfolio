@@ -60,8 +60,12 @@ export function ProfileEditor({ profile }: { profile: PublicProfile }) {
           <input name="interests" defaultValue={profile.interests} maxLength={160} className="field" />
         </label>
         <label className="grid gap-2 text-sm font-semibold">
+          Lien personnel
+          <input name="website" type="url" defaultValue={profile.website} maxLength={120} className="field" placeholder="https://" />
+        </label>
+        <label className="grid gap-2 text-sm font-semibold">
           Tranche d&apos;âge
-          <select name="ageBand" className="field" defaultValue="unknown">
+          <select name="ageBand" className="field" defaultValue={profile.ageBand}>
             <option value="unknown">Non précisée</option>
             {ageBands.map((band) => (
               <option key={band.value} value={band.value}>
@@ -71,6 +75,10 @@ export function ProfileEditor({ profile }: { profile: PublicProfile }) {
           </select>
         </label>
         <p className="text-xs leading-5 text-muted">La tranche d&apos;âge n&apos;est pas affichée. Elle sert à limiter les contacts entre les moins de 18 ans et les comptes de 23 ans et plus.</p>
+        <label className="flex items-start gap-2 text-sm">
+          <input name="showRelations" type="checkbox" defaultChecked={profile.showRelations} className="mt-1" />
+          <span>Afficher mes abonnés et mes abonnements sur mon profil public.</span>
+        </label>
         <div className="grid gap-3">
           <span className="text-sm font-semibold">Photo de profil</span>
           <span className="grid h-16 w-16 place-items-center bg-[#e4edf8] text-2xl font-bold">

@@ -126,19 +126,28 @@ export type PublicProfile = {
   bio: string;
   avatarUrl: string;
   interests: string;
+  website: string;
+  showRelations: boolean;
+  ageBand: string;
   isAdmin: boolean;
   createdAt: string;
 };
 
-export async function getProfileByUsername(username: string) {
-  const supabase = await createClient();
-  if (!supabase) return null;
-  const { data } = await supabase
-    .from("profiles")
-    .select("id, display_name, username, bio, avatar_url, interests, is_admin, created_at")
-    .eq("username", username.toLowerCase())
-    .maybeSingle();
-  if (!data) return null;
+const profileColumns = "id, display_name, username, bio, avatar_url, interests, website, show_relations, age_band, is_admin, created_at";
+
+function mapProfile(data: {
+  id: string;
+  display_name: string;
+  username: string;
+  bio: string;
+  avatar_url: string;
+  interests: string | null;
+  website: string | null;
+  show_relations: boolean | null;
+  age_band: string | null;
+  is_admin: boolean | null;
+  created_at: string;
+}): PublicProfile {
   return {
     id: data.id,
     displayName: data.display_name,
@@ -146,9 +155,29 @@ export async function getProfileByUsername(username: string) {
     bio: data.bio,
     avatarUrl: data.avatar_url,
     interests: data.interests ?? "",
+    website: data.website ?? "",
+    showRelations: data.show_relations !== false,
+    ageBand: data.age_band || "unknown",
     isAdmin: Boolean(data.is_admin),
     createdAt: data.created_at,
-  } satisfies PublicProfile;
+  };
+}
+
+export async function getProfileByUsername(username: string) {
+  const supabase = await createClient();
+  if (!supabase) return null;
+  const { data } = await supabase.from("profiles").select(profileColumns).eq("username", username.toLowerCase()).maybeSingle();
+  if (!data) return null;
+  return mapProfile(data);
+}
+
+export async function previousProfileUsername(username: string) {
+  const supabase = await createClient();
+  if (!supabase) return null;
+  const { data } = await supabase.from("profile_names").select("profile_id").eq("username", username.toLowerCase()).maybeSingle();
+  if (!data?.profile_id) return null;
+  const { data: profile } = await supabase.from("profiles").select("username").eq("id", data.profile_id).maybeSingle();
+  return profile?.username || null;
 }
 
 export async function getOwnProfile() {
@@ -158,20 +187,7 @@ export async function getOwnProfile() {
   if (!userId) return null;
   const profile = await ensureProfile(supabase, userId);
   if (!profile) return null;
-  const { data } = await supabase
-    .from("profiles")
-    .select("id, display_name, username, bio, avatar_url, interests, is_admin, created_at")
-    .eq("id", userId)
-    .maybeSingle();
+  const { data } = await supabase.from("profiles").select(profileColumns).eq("id", userId).maybeSingle();
   if (!data) return null;
-  return {
-    id: data.id,
-    displayName: data.display_name,
-    username: data.username,
-    bio: data.bio,
-    avatarUrl: data.avatar_url,
-    interests: data.interests ?? "",
-    isAdmin: Boolean(data.is_admin),
-    createdAt: data.created_at,
-  } satisfies PublicProfile;
+  return mapProfile(data);
 }

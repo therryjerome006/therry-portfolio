@@ -1,3 +1,4 @@
+import { loadEditorialFeed, loadEditorialPost } from "@/lib/editorial/public";
 import { PAGE_SIZE, type FeedTab } from "@/lib/network/constants";
 import { createClient } from "@/lib/supabase/server";
 
@@ -6,6 +7,7 @@ export type FeedAuthor = {
   username: string;
   displayName: string;
   avatarUrl: string;
+  editorial?: boolean;
 };
 
 export type FeedMedia = {
@@ -22,6 +24,8 @@ export type FeedPost = {
   communitySlug: string | null;
   communityName: string | null;
   schoolName: string | null;
+  discussion?: string;
+  canSave?: boolean;
   author: FeedAuthor;
   media: FeedMedia | null;
   likeCount: number;
@@ -111,31 +115,36 @@ export async function loadFeed(tab: FeedTab, page: number) {
     .eq("status", "published")
     .order("created_at", { ascending: false });
 
+  let followedEditorial: string[] | null = null;
   if (tab === "suivis") {
     if (!userId) return { ready: true as const, posts: [], hasMore: false, needsAuth: true };
-    const { data: follows } = await supabase.from("follows").select("following_id").eq("follower_id", userId);
-    const ids = (follows ?? []).map((row) => row.following_id);
-    if (ids.length === 0) return { ready: true as const, posts: [], hasMore: false };
-    query = query.in("user_id", ids);
+    const { data: follows } = await supabase.from("follows").select("following_id, editorial_id").eq("follower_id", userId);
+    const ids = (follows ?? []).map((row) => row.following_id).filter((id): id is string => Boolean(id));
+    followedEditorial = (follows ?? []).map((row) => row.editorial_id).filter((id): id is string => Boolean(id));
+    if (ids.length === 0 && followedEditorial.length === 0) return { ready: true as const, posts: [], hasMore: false };
+    if (ids.length === 0) query = query.eq("user_id", "00000000-0000-0000-0000-000000000000");
+    else query = query.in("user_id", ids);
   }
   if (tab === "recent") {
     query = query.gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
   }
 
-  const from = tab === "tendances" ? 0 : Math.max(0, page) * PAGE_SIZE;
-  const to = tab === "tendances" ? 39 : from + PAGE_SIZE;
-  const { data, error } = await query.range(from, to);
+  const windowSize = tab === "tendances" ? 40 : (Math.max(0, page) + 1) * PAGE_SIZE + 1;
+  const since = tab === "recent" ? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() : undefined;
+  const { data, error } = await query.range(0, windowSize - 1);
   if (error) return { ready: false as const, posts: [], hasMore: false };
-  let rows = (data ?? []) as PostRow[];
+  const rows = (data ?? []) as PostRow[];
   const stats = await counts(rows.map((row) => row.id), userId);
   let posts = rows.map((row) => mapPost(row, stats.likes, stats.comments, stats.liked, stats.saved));
+  const editorial = await loadEditorialFeed(windowSize, since, followedEditorial ?? undefined);
+  const seen = new Set(posts.map((post) => post.id));
+  posts = [...posts, ...editorial.filter((post) => !seen.has(post.id))].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
   if (tab === "tendances") {
     posts.sort((a, b) => b.likeCount - a.likeCount || +new Date(b.createdAt) - +new Date(a.createdAt));
-    const start = Math.max(0, page) * PAGE_SIZE;
-    const slice = posts.slice(start, start + PAGE_SIZE + 1);
-    return { ready: true as const, posts: slice.slice(0, PAGE_SIZE), hasMore: slice.length > PAGE_SIZE };
   }
-  return { ready: true as const, posts: posts.slice(0, PAGE_SIZE), hasMore: rows.length > PAGE_SIZE };
+  const start = Math.max(0, page) * PAGE_SIZE;
+  const slice = posts.slice(start, start + PAGE_SIZE + 1);
+  return { ready: true as const, posts: slice.slice(0, PAGE_SIZE), hasMore: slice.length > PAGE_SIZE };
 }
 
 export async function loadPost(id: string) {
@@ -146,10 +155,12 @@ export async function loadPost(id: string) {
     .select(postSelect)
     .eq("id", id)
     .maybeSingle();
-  if (!data) return null;
-  const { data: auth } = await supabase.auth.getUser();
-  const stats = await counts([id], auth.user?.id ?? null);
-  return mapPost(data as PostRow, stats.likes, stats.comments, stats.liked, stats.saved);
+  if (data) {
+    const { data: auth } = await supabase.auth.getUser();
+    const stats = await counts([id], auth.user?.id ?? null);
+    return mapPost(data as PostRow, stats.likes, stats.comments, stats.liked, stats.saved);
+  }
+  return loadEditorialPost(id);
 }
 
 export async function loadProfilePosts(userId: string, kind?: "photo" | "video") {
