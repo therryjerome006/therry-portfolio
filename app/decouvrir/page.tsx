@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CommunityCard } from "@/components/network/CommunityCard";
 import { PostCard } from "@/components/network/PostCard";
 import { loadCommunities, loadFeed } from "@/lib/network/feed";
 import { createClient } from "@/lib/supabase/server";
@@ -18,17 +19,18 @@ export default async function DiscoverPage() {
   ]);
 
   return (
-    <div className="mx-auto grid w-full max-w-5xl gap-8 px-4 py-6 lg:grid-cols-[16rem_1fr]">
-      <aside className="grid gap-3">
+    <div className="mx-auto grid w-full max-w-5xl gap-8 px-4 py-6">
+      <section>
         <h1 className="text-2xl font-bold">Découvrir</h1>
-        <div className="grid gap-2">
+        <h2 className="mt-6 text-sm font-bold uppercase tracking-wide text-muted">Communautés</h2>
+        <ul className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {communities.map((community) => (
-            <Link key={community.id} href={`/communautes/${community.slug}`} className="border border-line bg-white px-3 py-2 text-sm font-semibold">
-              {community.name}
-            </Link>
+            <li key={community.id}>
+              <CommunityCard community={community} />
+            </li>
           ))}
-        </div>
-      </aside>
+        </ul>
+      </section>
       <div className="grid gap-6">
         <section>
           <h2 className="text-sm font-bold uppercase tracking-wide text-muted">Nouveaux membres</h2>

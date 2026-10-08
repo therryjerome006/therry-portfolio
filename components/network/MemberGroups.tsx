@@ -45,7 +45,14 @@ export function MemberGroups({
           <p className="mt-1 text-sm text-muted">
             Administré par {group.ownerName} · {group.members} {group.members > 1 ? "membres" : "membre"}
           </p>
-          {group.mine === "admin" ? <p className="mt-2 text-sm">Vous administrez ce groupe.</p> : null}
+          {group.mine === "admin" ? (
+            <p className="mt-2 text-sm">
+              Vous administrez ce groupe.{" "}
+              <Link href="/profil" className="font-semibold">
+                Gérer depuis mon profil
+              </Link>
+            </p>
+          ) : null}
           {group.status === "closed" ? <p className="mt-2 text-sm">Fermé par l&apos;administration.</p> : null}
           {group.warning ? <p className="mt-2 border border-line bg-[#fff1f4] p-3 text-sm">Avertissement : {group.warning}</p> : null}
           {group.status === "open" && signedIn && group.mine !== "admin" ? (

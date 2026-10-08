@@ -34,7 +34,8 @@ export default async function CommunityPage({ params }: Props) {
 
   return (
     <div className="mx-auto w-full max-w-xl px-4 py-6">
-      <p className="text-xs font-bold uppercase tracking-wide text-muted">Communauté</p>
+      <img src={`/communities/${community.slug}.jpg`} alt="" className="aspect-[16/9] w-full border border-line object-cover" />
+      <p className="mt-4 text-xs font-bold uppercase tracking-wide text-muted">Communauté</p>
       <h1 className="mt-1 text-3xl font-bold">{community.name}</h1>
       <p className="mt-2 text-sm leading-6 text-muted">{community.description}</p>
       <p className="mt-2 text-sm font-semibold">{counts.members} membres</p>

@@ -187,8 +187,13 @@ export async function loadCommunityPosts(communityId: string) {
 export async function loadCommunities() {
   const supabase = await createClient();
   if (!supabase) return [];
-  const { data } = await supabase.from("communities").select("id, slug, name, description").order("name");
-  return data ?? [];
+  const [{ data }, members] = await Promise.all([
+    supabase.from("communities").select("id, slug, name, description").order("name"),
+    supabase.from("community_members").select("community_id"),
+  ]);
+  const counts = new Map<string, number>();
+  for (const row of members.data ?? []) counts.set(row.community_id, (counts.get(row.community_id) ?? 0) + 1);
+  return (data ?? []).map((community) => ({ ...community, members: counts.get(community.id) ?? 0 }));
 }
 
 export async function loadCommunity(slug: string) {
@@ -327,4 +332,127 @@ export async function loadMySchools(userId: string) {
     if (!communityId) return [];
     return [{ communityId, schoolId: school.id, schoolName: school.name }];
   });
+}
+
+export type ProfileActivity = {
+  groups: {
+    id: string;
+    name: string;
+    status: "open" | "closed";
+    warning: string;
+    role: "admin" | "member";
+    members: number;
+    communityName: string;
+    communitySlug: string;
+    people: { id: string; name: string }[];
+  }[];
+  schools: {
+    id: string;
+    name: string;
+    role: "manager" | "member";
+    communityName: string;
+    communitySlug: string;
+  }[];
+  communities: { id: string; name: string; slug: string }[];
+};
+
+const emptyActivity: ProfileActivity = { groups: [], schools: [], communities: [] };
+
+export async function loadProfileActivity(userId: string, viewerId: string | null): Promise<ProfileActivity> {
+  const supabase = await createClient();
+  if (!supabase) return emptyActivity;
+  const [groupMemberships, schoolMemberships, communityMemberships] = await Promise.all([
+    supabase.from("group_members").select("group_id, role").eq("user_id", userId),
+    supabase.from("school_members").select("school_id, role").eq("user_id", userId),
+    supabase.from("community_members").select("community_id").eq("user_id", userId),
+  ]);
+
+  const ownedRows = groupMemberships.data ?? [];
+  let groupRows = ownedRows;
+  if (viewerId !== userId) {
+    const ownedIds = ownedRows.map((row) => row.group_id);
+    if (!viewerId || ownedIds.length === 0) {
+      groupRows = [];
+    } else {
+      const { data: shared } = await supabase.from("group_members").select("group_id").eq("user_id", viewerId).in("group_id", ownedIds);
+      const sharedIds = new Set((shared ?? []).map((row) => row.group_id));
+      groupRows = ownedRows.filter((row) => sharedIds.has(row.group_id));
+    }
+  }
+  const groupIds = groupRows.map((row) => row.group_id);
+  const { data: groups } = groupIds.length
+    ? await supabase.from("community_groups").select("id, name, status, warning, community_id").in("id", groupIds).eq("kind", "member")
+    : { data: [] as { id: string; name: string; status: string; warning: string; community_id: string }[] };
+  const { data: groupPeople } = groupIds.length
+    ? await supabase.from("group_members").select("group_id, user_id, role").in("group_id", groupIds)
+    : { data: [] as { group_id: string; user_id: string; role: string }[] };
+  const managedIds = new Set(viewerId === userId ? groupRows.filter((row) => row.role === "admin").map((row) => row.group_id) : []);
+  const peopleIds = [...new Set((groupPeople ?? []).filter((person) => managedIds.has(person.group_id)).map((person) => person.user_id))];
+
+  const schoolRows = schoolMemberships.data ?? [];
+  const schoolIds = schoolRows.map((row) => row.school_id);
+  const { data: schools } = schoolIds.length
+    ? await supabase.from("schools").select("id, name, group_id").in("id", schoolIds)
+    : { data: [] as { id: string; name: string; group_id: string }[] };
+  const schoolGroupIds = [...new Set((schools ?? []).map((school) => school.group_id))];
+
+  const communityIds = [
+    ...new Set([
+      ...(groups ?? []).map((group) => group.community_id),
+      ...(communityMemberships.data ?? []).map((row) => row.community_id),
+    ]),
+  ];
+  const [{ data: schoolGroups }, { data: communities }, { data: people }] = await Promise.all([
+    schoolGroupIds.length
+      ? supabase.from("community_groups").select("id, community_id").in("id", schoolGroupIds)
+      : Promise.resolve({ data: [] as { id: string; community_id: string }[] }),
+    communityIds.length
+      ? supabase.from("communities").select("id, name, slug").in("id", communityIds)
+      : Promise.resolve({ data: [] as { id: string; name: string; slug: string }[] }),
+    peopleIds.length
+      ? supabase.from("profiles").select("id, display_name").in("id", peopleIds)
+      : Promise.resolve({ data: [] as { id: string; display_name: string }[] }),
+  ]);
+
+  const schoolCommunityIds = [...new Set((schoolGroups ?? []).map((group) => group.community_id))].filter((id) => !communityIds.includes(id));
+  const { data: extraCommunities } = schoolCommunityIds.length
+    ? await supabase.from("communities").select("id, name, slug").in("id", schoolCommunityIds)
+    : { data: [] as { id: string; name: string; slug: string }[] };
+  const communityById = new Map([...(communities ?? []), ...(extraCommunities ?? [])].map((community) => [community.id, community]));
+  const communityBySchoolGroup = new Map((schoolGroups ?? []).map((group) => [group.id, group.community_id]));
+  const nameById = new Map((people ?? []).map((person) => [person.id, person.display_name]));
+  const roleByGroup = new Map(groupRows.map((row) => [row.group_id, row.role === "admin" ? "admin" as const : "member" as const]));
+  const counts = new Map<string, number>();
+  for (const person of groupPeople ?? []) counts.set(person.group_id, (counts.get(person.group_id) ?? 0) + 1);
+
+  return {
+    groups: (groups ?? []).map((group) => {
+      const community = communityById.get(group.community_id);
+      const role = roleByGroup.get(group.id) ?? "member";
+      return {
+        id: group.id,
+        name: group.name,
+        status: group.status === "closed" ? "closed" as const : "open" as const,
+        warning: viewerId === userId ? group.warning || "" : "",
+        role,
+        members: counts.get(group.id) ?? 0,
+        communityName: community?.name || "Communauté",
+        communitySlug: community?.slug || "",
+        people: managedIds.has(group.id)
+          ? (groupPeople ?? []).filter((person) => person.group_id === group.id && person.role !== "admin").map((person) => ({ id: person.user_id, name: nameById.get(person.user_id) || "Membre" }))
+          : [],
+      };
+    }).sort((a, b) => Number(b.role === "admin") - Number(a.role === "admin") || a.name.localeCompare(b.name, "fr")),
+    schools: (schools ?? []).flatMap((school) => {
+      const community = communityById.get(communityBySchoolGroup.get(school.group_id) || "");
+      if (!community) return [];
+      const role = schoolRows.find((row) => row.school_id === school.id)?.role === "manager" ? "manager" as const : "member" as const;
+      return [{ id: school.id, name: school.name, role, communityName: community.name, communitySlug: community.slug }];
+    }),
+    communities: (communityMemberships.data ?? []).flatMap((row) => {
+      const community = communityById.get(row.community_id);
+      if (!community) return [];
+      return [{ id: community.id, name: community.name, slug: community.slug }];
+    }).sort((a, b) => a.name.localeCompare(b.name, "fr")),
+  };
 }
