@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Instrument_Sans, Instrument_Serif } from "next/font/google";
 import { SiteChrome } from "@/components/layout/SiteChrome";
+import { SiteIntro } from "@/components/layout/SiteIntro";
 import { profile, siteDescription } from "@/data/profile";
 import { getSiteUrl } from "@/lib/site";
 import "./globals.css";
@@ -62,6 +63,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           Aller au contenu
         </a>
         <SiteChrome>{children}</SiteChrome>
+        <SiteIntro />
       </body>
     </html>
   );

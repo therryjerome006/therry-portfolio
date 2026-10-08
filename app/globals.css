@@ -93,6 +93,42 @@ body {
   animation-delay: -4s;
 }
 
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+}
+
+.intro-bar {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--line);
+}
+
+.intro-bar span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  animation: intro-fill 2.6s linear forwards;
+}
+
+.intro-bar.is-short span {
+  animation-duration: 0.9s;
+}
+
+@keyframes intro-fill {
+  to {
+    width: 100%;
+  }
+}
+
 .mark {
   background: linear-gradient(120deg, var(--accent-strong), #7eb6ff, var(--accent));
   background-size: 180% 180%;
