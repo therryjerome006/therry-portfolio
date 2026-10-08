@@ -229,6 +229,13 @@ export async function loadFollowedEditorial(userId: string) {
   const { data: follows } = await supabase.from("follows").select("editorial_id").eq("follower_id", userId).not("editorial_id", "is", null);
   const ids = (follows ?? []).map((row) => row.editorial_id).filter((id): id is string => Boolean(id));
   if (ids.length === 0) return [];
-  const { data } = await supabase.from("editorial_profiles").select("id, name, slug").in("id", ids).order("name");
-  return (data ?? []).map((profile) => ({ id: profile.id as string, name: profile.name as string, slug: profile.slug as string }));
+  const { data } = await supabase.from("editorial_profiles").select("id, name, slug, avatar_url, description, category").in("id", ids).order("name");
+  return (data ?? []).map((profile) => ({
+    id: profile.id as string,
+    name: profile.name as string,
+    slug: profile.slug as string,
+    avatarUrl: (profile.avatar_url as string) || "",
+    description: (profile.description as string) || "",
+    category: (profile.category as string) || "",
+  }));
 }

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { BlockButton, FollowButton } from "@/components/network/JoinButton";
+import { ArticleCard } from "@/components/journal/ArticleCard";
+import { PersonCard } from "@/components/network/PersonCard";
 import { PostCard } from "@/components/network/PostCard";
 import { ProfileActivity } from "@/components/network/ProfileActivity";
 import { ReportButton } from "@/components/network/ReportButton";
@@ -42,8 +44,8 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
     loadProfilePosts(profile.id, "photo"),
     loadProfilePosts(profile.id, "video"),
     supabase
-      ? supabase.from("community_articles").select("id, title, created_at").eq("user_id", profile.id).eq("status", "published").order("created_at", { ascending: false }).limit(12)
-      : Promise.resolve({ data: [] }),
+      ? supabase.from("community_articles").select("id, title, body, category, cover_url").eq("user_id", profile.id).eq("status", "published").order("created_at", { ascending: false }).limit(12)
+      : Promise.resolve({ data: [] as { id: string; title: string; body: string; category: string | null; cover_url: string | null }[] }),
     loadProfileActivity(profile.id, me),
     mine || profile.showRelations ? loadPublicRelations(supabase, profile.id) : Promise.resolve({ followers: [], following: [] }),
   ]);
@@ -114,28 +116,33 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
       <div className="mt-4 grid gap-3">
         {tab === "activite" ? <ProfileActivity activity={activity} mine={mine} path={path} /> : null}
         {tab === "relations" && (mine || profile.showRelations) ? (
-          <div className="grid gap-4 text-sm">
-            <div>
+          <div className="grid gap-4">
+            <div className="grid gap-3">
               <h2 className="font-bold">Abonnés</h2>
-              <ul className="mt-2 grid gap-1">
-                {relations.followers.map((person) => <li key={person.id}><Link href={`/profil/${person.username}`} className="font-semibold">{person.name}</Link></li>)}
-                {relations.followers.length === 0 ? <li className="text-muted">Aucun abonné.</li> : null}
-              </ul>
+              {relations.followers.map((person) => (
+                <PersonCard key={person.id} href={`/profil/${person.username}`} name={person.name} username={person.username} avatarUrl={person.avatarUrl} bio={person.bio} />
+              ))}
+              {relations.followers.length === 0 ? <p className="text-sm text-muted">Aucun abonné.</p> : null}
             </div>
-            <div>
+            <div className="grid gap-3">
               <h2 className="font-bold">Abonnements</h2>
-              <ul className="mt-2 grid gap-1">
-                {relations.following.map((person) => <li key={person.id}><Link href={`/profil/${person.username}`} className="font-semibold">{person.name}</Link></li>)}
-                {relations.following.length === 0 ? <li className="text-muted">Aucun abonnement.</li> : null}
-              </ul>
+              {relations.following.map((person) => (
+                <PersonCard key={person.id} href={`/profil/${person.username}`} name={person.name} username={person.username} avatarUrl={person.avatarUrl} bio={person.bio} />
+              ))}
+              {relations.following.length === 0 ? <p className="text-sm text-muted">Aucun abonnement.</p> : null}
             </div>
           </div>
         ) : null}
         {tab === "articles"
           ? (articles.data ?? []).map((article) => (
-              <Link key={article.id} href={`/articles/${article.id}`} className="border border-line bg-white p-4 font-semibold">
-                {article.title}
-              </Link>
+              <ArticleCard
+                key={article.id}
+                id={article.id}
+                title={article.title}
+                category={article.category || ""}
+                cover={article.cover_url || ""}
+                excerpt={article.body.replace(/\s+/g, " ").trim().slice(0, 180)}
+              />
             ))
           : null}
         {tab !== "articles" && tab !== "activite" && tab !== "relations" ? shown.map((post) => <PostCard key={post.id} post={post} />) : null}

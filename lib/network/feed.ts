@@ -147,6 +147,27 @@ export async function loadFeed(tab: FeedTab, page: number) {
   return { ready: true as const, posts: slice.slice(0, PAGE_SIZE), hasMore: slice.length > PAGE_SIZE };
 }
 
+export async function loadPostsByIds(ids: string[]) {
+  const unique = [...new Set(ids)].filter((id) => /^[0-9a-f-]{36}$/i.test(id));
+  if (unique.length === 0) return [];
+  const supabase = await createClient();
+  if (!supabase) return [];
+  const { data } = await supabase.from("posts").select(postSelect).in("id", unique).eq("status", "published");
+  const rows = (data ?? []) as PostRow[];
+  const { data: auth } = await supabase.auth.getUser();
+  const stats = await counts(rows.map((row) => row.id), auth.user?.id ?? null);
+  const posts = rows.map((row) => mapPost(row, stats.likes, stats.comments, stats.liked, stats.saved));
+  const found = new Set(posts.map((post) => post.id));
+  const editorial = await Promise.all(unique.filter((id) => !found.has(id)).map((id) => loadEditorialPost(id)));
+  const byId = new Map<string, FeedPost>();
+  for (const post of posts) byId.set(post.id, post);
+  for (const post of editorial) if (post) byId.set(post.id, post);
+  return unique.flatMap((id) => {
+    const post = byId.get(id);
+    return post ? [post] : [];
+  });
+}
+
 export async function loadPost(id: string) {
   const supabase = await createClient();
   if (!supabase) return null;

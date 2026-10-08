@@ -1,14 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { DeleteAccountForm, DeletePostButton, OwnPostTools, UnblockButton, UnfollowButton, UnsaveButton } from "@/components/account/AccountTools";
+import { DeleteAccountForm, DeletePostButton, OwnPostTools, UnblockButton } from "@/components/account/AccountTools";
+import { ArticleCard } from "@/components/journal/ArticleCard";
+import { FollowButton } from "@/components/network/JoinButton";
+import { PersonCard } from "@/components/network/PersonCard";
 import { ProfileActivity } from "@/components/network/ProfileActivity";
 import { PostCard } from "@/components/network/PostCard";
 import { ProfileEditor } from "@/components/social/ProfileEditor";
-import { formatDate } from "@/lib/format";
+import { categoryLabel } from "@/lib/editorial/constants";
+import { formatDate, formatRelative } from "@/lib/format";
 import { loadProfileActivity } from "@/lib/network/feed";
 import { getOwnProfile } from "@/lib/social/queries";
-import { loadOwnHub, relationCounts } from "@/lib/social/space";
+import { loadOwnHub, relationCounts, type ProfileNote } from "@/lib/social/space";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Mon espace", robots: { index: false, follow: false } };
@@ -26,10 +30,18 @@ const sections = [
 
 type Section = (typeof sections)[number][0];
 
-function contentHref(type: string, id: string) {
-  if (type === "feed" || type === "post") return `/p/${id}`;
-  if (type === "article") return `/articles/${id}`;
-  return "";
+function NoteCard({ note }: { note: ProfileNote }) {
+  return (
+    <article className="grid gap-3">
+      <p className="text-sm leading-6">
+        <span className="font-semibold">{note.body}</span>
+        <span className="text-muted"> · {formatRelative(note.createdAt)}</span>
+      </p>
+      {note.post ? <PostCard post={note.post} /> : null}
+      {note.article ? <ArticleCard {...note.article} /> : null}
+      {!note.post && !note.article ? <p className="text-sm text-muted">Le contenu d&apos;origine n&apos;est plus accessible.</p> : null}
+    </article>
+  );
 }
 
 export default async function OwnProfilePage({ searchParams }: { searchParams: Promise<{ espace?: string; q?: string }> }) {
@@ -47,6 +59,8 @@ export default async function OwnProfilePage({ searchParams }: { searchParams: P
     relationCounts(profile.id),
   ]);
   const path = `/profil/${profile.username}`;
+  const relationsPath = "/profil?espace=relations";
+  const followedIds = new Set(hub.following.map((person) => person.id));
   const matches = (name: string, username: string) => !search || name.toLowerCase().includes(search) || username.toLowerCase().includes(search);
 
   return (
@@ -67,6 +81,11 @@ export default async function OwnProfilePage({ searchParams }: { searchParams: P
             <p className="text-xs text-muted">Inscrit le {formatDate(profile.createdAt)}</p>
             <Link href={path} className="w-fit font-semibold">Voir mon profil public</Link>
             <ProfileActivity activity={activity} mine path={path} />
+            <div className="grid gap-3">
+              {hub.posts.slice(0, 3).map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))}
+            </div>
           </section>
         ) : null}
         {section === "modifier" ? (
@@ -79,7 +98,7 @@ export default async function OwnProfilePage({ searchParams }: { searchParams: P
           <section className="grid gap-4">
             <h1 className="text-3xl font-bold">Mes publications</h1>
             {hub.articles.map((article) => (
-              <Link key={article.id} href={`/articles/${article.id}`} className="border border-line bg-white p-4 font-semibold">{article.title}</Link>
+              <ArticleCard key={article.id} {...article} />
             ))}
             {hub.posts.map((post) => (
               <div key={post.id}>
@@ -92,55 +111,31 @@ export default async function OwnProfilePage({ searchParams }: { searchParams: P
           </section>
         ) : null}
         {section === "medias" ? (
-          <section>
+          <section className="grid gap-4">
             <h1 className="text-3xl font-bold">Mes médias</h1>
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {[...hub.photos, ...hub.videos].map((post) => (
-                <Link key={post.id} href={`/p/${post.id}`} className="block border border-line bg-white">
-                  {post.media?.mediaType === "image" ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={post.media.url} alt="" className="aspect-square w-full object-cover" />
-                  ) : null}
-                  {post.media?.mediaType === "video" ? <video src={post.media.url} className="aspect-square w-full bg-black object-cover" muted /> : null}
-                  <span className="block p-2 text-xs font-semibold">{post.kind === "video" ? "Vidéo" : "Photo"}</span>
-                </Link>
-              ))}
-            </div>
-            {hub.photos.length + hub.videos.length === 0 ? <p className="mt-4 text-sm text-muted">Aucune photo ni vidéo publiée.</p> : null}
+            {[...hub.photos, ...hub.videos].map((post) => (
+              <PostCard key={post.id} post={post} />
+            ))}
+            {hub.photos.length + hub.videos.length === 0 ? <p className="text-sm text-muted">Aucune photo ni vidéo publiée.</p> : null}
           </section>
         ) : null}
         {section === "interactions" ? (
           <section className="grid gap-6">
             <h1 className="text-3xl font-bold">Mes interactions</h1>
-            <div>
+            <div className="grid gap-4">
               <h2 className="font-bold">Commentaires</h2>
-              <ul className="mt-2 grid gap-2 text-sm">
-                {hub.comments.length === 0 ? <li className="text-muted">Aucun commentaire.</li> : null}
-                {hub.comments.map((comment) => {
-                  const href = contentHref(comment.content_type, comment.content_id);
-                  return <li key={comment.id}>{href ? <Link href={href} className="font-semibold">{comment.body.slice(0, 140)}</Link> : comment.body.slice(0, 140)}</li>;
-                })}
-              </ul>
+              {hub.comments.length === 0 ? <p className="text-sm text-muted">Aucun commentaire.</p> : null}
+              {hub.comments.map((note) => <NoteCard key={note.id} note={note} />)}
             </div>
-            <div>
+            <div className="grid gap-4">
               <h2 className="font-bold">Réponses reçues</h2>
-              <ul className="mt-2 grid gap-2 text-sm">
-                {hub.replies.length === 0 ? <li className="text-muted">Aucune réponse pour le moment.</li> : null}
-                {hub.replies.map((reply) => {
-                  const href = contentHref(reply.content_type, reply.content_id);
-                  return <li key={reply.id}>{href ? <Link href={href}>{reply.body.slice(0, 140)}</Link> : reply.body.slice(0, 140)}</li>;
-                })}
-              </ul>
+              {hub.replies.length === 0 ? <p className="text-sm text-muted">Aucune réponse pour le moment.</p> : null}
+              {hub.replies.map((note) => <NoteCard key={note.id} note={note} />)}
             </div>
-            <div>
+            <div className="grid gap-4">
               <h2 className="font-bold">Publications aimées</h2>
-              <ul className="mt-2 grid gap-2 text-sm">
-                {hub.likes.length === 0 ? <li className="text-muted">Aucun j&apos;aime.</li> : null}
-                {hub.likes.map((like) => {
-                  const href = contentHref(like.content_type, like.content_id);
-                  return <li key={`${like.content_type}-${like.content_id}`}>{href ? <Link href={href} className="font-semibold">Ouvrir la publication</Link> : "Contenu retiré"}</li>;
-                })}
-              </ul>
+              {hub.likes.length === 0 ? <p className="text-sm text-muted">Aucun j&apos;aime.</p> : null}
+              {hub.likes.map((post) => <PostCard key={post.id} post={post} />)}
             </div>
           </section>
         ) : null}
@@ -153,33 +148,47 @@ export default async function OwnProfilePage({ searchParams }: { searchParams: P
               <input name="q" defaultValue={query.q || ""} placeholder="Rechercher un nom" className="field" />
               <button type="submit" className="btn btn-line">Chercher</button>
             </form>
-            <div>
+            <div className="grid gap-3">
               <h2 className="font-bold">Abonnés</h2>
-              <ul className="mt-2 grid gap-2 text-sm">
-                {hub.followers.filter((person) => matches(person.name, person.username)).map((person) => (
-                  <li key={person.id}><Link href={`/profil/${person.username}`} className="font-semibold">{person.name}</Link> <span className="text-muted">@{person.username}</span></li>
-                ))}
-                {hub.followers.length === 0 ? <li className="text-muted">Aucun abonné.</li> : null}
-              </ul>
+              {hub.followers.filter((person) => matches(person.name, person.username)).map((person) => (
+                <PersonCard
+                  key={person.id}
+                  href={`/profil/${person.username}`}
+                  name={person.name}
+                  username={person.username}
+                  avatarUrl={person.avatarUrl}
+                  bio={person.bio}
+                  action={<FollowButton userId={person.id} following={followedIds.has(person.id)} path={relationsPath} />}
+                />
+              ))}
+              {hub.followers.length === 0 ? <p className="text-sm text-muted">Aucun abonné.</p> : null}
             </div>
-            <div>
+            <div className="grid gap-3">
               <h2 className="font-bold">Comptes suivis</h2>
-              <ul className="mt-2 grid gap-2 text-sm">
-                {hub.following.filter((person) => matches(person.name, person.username)).map((person) => (
-                  <li key={person.id} className="flex flex-wrap items-center gap-3">
-                    <Link href={`/profil/${person.username}`} className="font-semibold">{person.name}</Link>
-                    <UnfollowButton userId={person.id} />
-                  </li>
-                ))}
-                {hub.editorial.filter((person) => matches(person.name, person.slug)).map((person) => (
-                  <li key={person.id} className="flex flex-wrap items-center gap-3">
-                    <Link href={`/redaction/${person.slug}`} className="font-semibold">{person.name}</Link>
-                    <span className="text-xs font-bold uppercase text-accent">Éditorial</span>
-                    <UnfollowButton editorialId={person.id} />
-                  </li>
-                ))}
-                {hub.following.length + hub.editorial.length === 0 ? <li className="text-muted">Vous ne suivez encore personne.</li> : null}
-              </ul>
+              {hub.following.filter((person) => matches(person.name, person.username)).map((person) => (
+                <PersonCard
+                  key={person.id}
+                  href={`/profil/${person.username}`}
+                  name={person.name}
+                  username={person.username}
+                  avatarUrl={person.avatarUrl}
+                  bio={person.bio}
+                  action={<FollowButton userId={person.id} following path={relationsPath} />}
+                />
+              ))}
+              {hub.editorial.filter((person) => matches(person.name, person.slug)).map((person) => (
+                <PersonCard
+                  key={person.id}
+                  href={`/redaction/${person.slug}`}
+                  name={person.name}
+                  username={person.slug}
+                  avatarUrl={person.avatarUrl}
+                  bio={person.description}
+                  badge={categoryLabel(person.category)}
+                  action={<FollowButton editorialId={person.id} following path={relationsPath} />}
+                />
+              ))}
+              {hub.following.length + hub.editorial.length === 0 ? <p className="text-sm text-muted">Vous ne suivez encore personne.</p> : null}
             </div>
           </section>
         ) : null}
@@ -187,15 +196,15 @@ export default async function OwnProfilePage({ searchParams }: { searchParams: P
           <section>
             <h1 className="text-3xl font-bold">Contenus enregistrés</h1>
             <p className="mt-2 text-sm text-muted">Cette liste n&apos;est visible que par vous.</p>
-            <ul className="mt-4 grid gap-2">
-              {hub.saved.map((item) => (
-                <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 border border-line bg-white p-3 text-sm">
-                  <Link href={item.href} className="font-semibold">{item.title}</Link>
-                  <UnsaveButton postId={item.id} />
-                </li>
+            <div className="mt-4 grid gap-3">
+              {hub.saved.map((post) => (
+                <PostCard key={post.id} post={post} />
               ))}
-              {hub.saved.length === 0 ? <li className="text-sm text-muted">Aucun contenu enregistré.</li> : null}
-            </ul>
+              {hub.savedArticles.map((article) => (
+                <ArticleCard key={article.id} {...article} />
+              ))}
+              {hub.saved.length + hub.savedArticles.length === 0 ? <p className="text-sm text-muted">Aucun contenu enregistré.</p> : null}
+            </div>
           </section>
         ) : null}
         {section === "reglages" ? (
@@ -208,15 +217,20 @@ export default async function OwnProfilePage({ searchParams }: { searchParams: P
             </div>
             <div>
               <h2 className="font-bold">Comptes bloqués</h2>
-              <ul className="mt-2 grid gap-2 text-sm">
-                {hub.blocked.length === 0 ? <li className="text-muted">Aucun compte bloqué.</li> : null}
+              <div className="mt-2 grid gap-3">
+                {hub.blocked.length === 0 ? <p className="text-sm text-muted">Aucun compte bloqué.</p> : null}
                 {hub.blocked.map((person) => (
-                  <li key={person.id} className="flex items-center gap-3">
-                    <span>{person.name}</span>
-                    <UnblockButton userId={person.id} />
-                  </li>
+                  <PersonCard
+                    key={person.id}
+                    href={`/profil/${person.username}`}
+                    name={person.name}
+                    username={person.username}
+                    avatarUrl={person.avatarUrl}
+                    bio={person.bio}
+                    action={<UnblockButton userId={person.id} />}
+                  />
                 ))}
-              </ul>
+              </div>
             </div>
             <DeleteAccountForm username={profile.username} />
           </section>
