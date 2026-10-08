@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { adminAccountSignedIn } from "@/lib/auth/owner";
 import { endSession, startSession } from "@/lib/auth/session";
 import { clearLoginFailures, loginBlocked, recordLoginFailure } from "@/lib/auth/throttle";
 import { passwordsMatch, safeAdminNext } from "@/lib/auth/token";
@@ -25,6 +26,12 @@ export async function login(_prev: { error?: string } | null, formData: FormData
     return {
       error: "Définissez ADMIN_PASSWORD dans .env.local avant de vous connecter.",
     };
+  }
+
+  if (!(await adminAccountSignedIn())) {
+    recordLoginFailure(key);
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    return { error: "Seul le compte administrateur peut entrer. Le mot de passe ne suffit pas." };
   }
 
   if (!password || !passwordsMatch(password, expected)) {

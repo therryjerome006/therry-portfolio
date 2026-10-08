@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { hasValidSession } from "@/lib/auth/session";
+import { adminAccess } from "@/lib/auth/session";
 import { adminSecretConfigured, pathSignatureMatches, safeAdminNext } from "@/lib/auth/token";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +29,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const pathname = headerList.get("x-pathname") ?? "";
   const trusted = await pathSignatureMatches(pathname, headerList.get("x-pathname-sig"));
   const loginPage = trusted && (pathname === "/admin/login" || pathname.startsWith("/admin/login/"));
-  const authed = await hasValidSession();
+  const authed = await adminAccess();
 
   if (!loginPage && !authed) {
     redirect(`/admin/login?next=${encodeURIComponent(safeAdminNext(trusted ? pathname : "/admin/blog"))}`);

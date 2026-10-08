@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { hasValidSession } from "@/lib/auth/session";
+import { adminAccess } from "@/lib/auth/session";
 import type { UploadKind } from "@/lib/media/constants";
 import { uploadObject } from "@/lib/media/storage";
 import { validateUpload } from "@/lib/media/validate";
@@ -8,7 +8,7 @@ import { validateUpload } from "@/lib/media/validate";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  if (!(await hasValidSession())) {
+  if (!(await adminAccess())) {
     return NextResponse.json({ error: "Connexion requise." }, { status: 401 });
   }
 

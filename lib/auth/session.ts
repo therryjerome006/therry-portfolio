@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { adminAccountSignedIn } from "@/lib/auth/owner";
 import { createSessionToken, SESSION_COOKIE, verifySessionToken } from "@/lib/auth/token";
 
 export { SESSION_COOKIE };
@@ -10,8 +11,15 @@ export async function hasValidSession() {
   return verifySessionToken(jar.get(SESSION_COOKIE)?.value);
 }
 
+export async function adminAccess() {
+  if (!(await hasValidSession())) return false;
+  if (await adminAccountSignedIn()) return true;
+  await endSession();
+  return false;
+}
+
 export async function requireAdmin() {
-  if (!(await hasValidSession())) redirect("/admin/login");
+  if (!(await adminAccess())) redirect("/admin/login");
 }
 
 export async function startSession() {

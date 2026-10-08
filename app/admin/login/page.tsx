@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/admin/LoginForm";
 import { profile } from "@/data/profile";
-import { hasValidSession } from "@/lib/auth/session";
+import { adminAccountSignedIn } from "@/lib/auth/owner";
+import { adminAccess } from "@/lib/auth/session";
 import { safeAdminNext } from "@/lib/auth/token";
 
 export const metadata: Metadata = { title: "Connexion" };
@@ -12,7 +13,8 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ next?: string }>;
 }) {
-  if (await hasValidSession()) redirect("/admin/blog");
+  if (await adminAccess()) redirect("/admin/blog");
+  const accountReady = await adminAccountSignedIn();
   const params = await searchParams;
 
   return (
@@ -56,10 +58,10 @@ export default async function LoginPage({
           <p className="kicker lg:hidden">Espace privé</p>
           <h2 className="display mt-3 text-4xl text-ink lg:mt-0">Connexion</h2>
           <p className="mt-3 text-sm leading-6 text-muted">
-            Entrez le mot de passe d&apos;administration pour ouvrir le blog.
+            Le mot de passe n&apos;ouvre l&apos;administration que si la session est celle du compte administrateur.
           </p>
           <div className="mt-8">
-            <LoginForm next={safeAdminNext(params.next)} configured={Boolean(process.env.ADMIN_PASSWORD)} />
+            <LoginForm next={safeAdminNext(params.next)} configured={Boolean(process.env.ADMIN_PASSWORD)} accountReady={accountReady} />
           </div>
         </div>
       </section>
