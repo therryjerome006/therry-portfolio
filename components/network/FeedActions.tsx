@@ -51,10 +51,10 @@ export function FeedActions({
   }
 
   return (
-    <div className="mt-3 grid gap-2">
-      <div className="flex flex-wrap items-center gap-4 text-sm font-semibold">
+    <div className="grid gap-2">
+      <div className="post-actions">
         {showLike ? (
-          <button type="button" className={`inline-flex items-center gap-1 ${state.liked ? "text-rose-600" : "text-muted"}`} aria-pressed={state.liked} onClick={like} disabled={pending}>
+          <button type="button" className={`tone-like${state.liked ? " is-on" : ""}`} aria-pressed={state.liked} onClick={like} disabled={pending}>
             <Heart size={16} fill={state.liked ? "currentColor" : "none"} />
             {state.likeCount}
           </button>
@@ -64,13 +64,13 @@ export function FeedActions({
             {likeCount}
           </span>
         )}
-        <Link href={`${path}#interactions`} className="inline-flex items-center gap-1 text-muted">
+        <Link href={`${path}#interactions`} className="tone-talk">
           <MessageCircle size={16} />
           {commentCount}
         </Link>
         <button
           type="button"
-          className="inline-flex items-center gap-1 text-muted"
+          className="tone-share"
           onClick={async () => {
             const url = `${window.location.origin}/p/${postId}`;
             if (navigator.share) {
@@ -86,7 +86,7 @@ export function FeedActions({
         </button>
         {canSave ? <button
           type="button"
-          className={`inline-flex items-center gap-1 ${state.saved ? "text-accent" : "text-muted"}`}
+          className={`tone-save${state.saved ? " is-on" : ""}`}
           aria-pressed={state.saved}
           onClick={() => {
             const previous = state.saved;
@@ -107,16 +107,18 @@ export function FeedActions({
           Enregistrer
         </button> : null}
       </div>
-      <ReportButton targetType={reportType} targetId={postId} path={path} />
+      <div className="px-4 pb-3">
+        <ReportButton targetType={reportType} targetId={postId} path={path} />
+      </div>
       {prompt ? (
-        <p className="text-sm text-ink">
+        <p className="px-4 text-sm text-ink">
           Connectez-vous pour interagir avec ce contenu.{" "}
           <Link href={`/connexion?next=${next}`} className="font-semibold">
             Se connecter
           </Link>
         </p>
       ) : null}
-      {note ? <p className="text-sm text-muted">{note}</p> : null}
+      {note ? <p className="px-4 pb-3 text-sm text-muted">{note}</p> : null}
     </div>
   );
 }

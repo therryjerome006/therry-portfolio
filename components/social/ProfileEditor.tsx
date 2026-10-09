@@ -29,7 +29,7 @@ export function ProfileEditor({ profile }: { profile: PublicProfile }) {
   return (
     <div className="grid gap-6">
       <form
-        className="grid gap-5 border-[3px] border-[#12263f] bg-white p-6"
+        className="panel grid gap-5 p-6"
         action={(formData) => {
           setSaved(false);
           start(async () => {

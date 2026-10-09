@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PostCard } from "@/components/network/PostCard";
+import { SectionTabs } from "@/components/network/SectionTabs";
 import { feedTabs, isFeedTab } from "@/lib/network/constants";
 import { loadFeed } from "@/lib/network/feed";
 
@@ -19,25 +20,20 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const feed = await loadFeed(tab, page);
 
   return (
-    <div className="mx-auto w-full max-w-xl px-4 py-4">
-      <div className="flex gap-2 overflow-x-auto pb-3" role="tablist" aria-label="Fil">
-        {feedTabs.map((item) => {
-          const active = item.id === tab;
-          const href = item.id === "pour-toi" ? "/" : `/?onglet=${item.id}`;
-          return (
-            <Link key={item.id} href={href} className={`shrink-0 px-3 py-2 text-sm font-semibold ${active ? "bg-ink text-white" : "text-muted"}`} aria-current={active ? "page" : undefined}>
-              {item.label}
-            </Link>
-          );
-        })}
-      </div>
+    <div className="mx-auto grid w-full max-w-xl gap-4 px-4 py-4">
+      <SectionTabs
+        label="Fil"
+        active={tab}
+        items={feedTabs.map((item) => [item.id, item.label] as const)}
+        hrefFor={(id) => (id === "pour-toi" ? "/" : `/?onglet=${id}`)}
+      />
 
       {!feed.ready ? (
-        <p className="border border-line bg-white p-4 text-sm leading-6 text-muted">Le fil sera disponible dès que la base du réseau est en place.</p>
+        <p className="panel p-4 text-sm leading-6 text-muted">Le fil sera disponible dès que la base du réseau est en place.</p>
       ) : null}
 
       {feed.ready && "needsAuth" in feed && feed.needsAuth ? (
-        <p className="border border-line bg-white p-4 text-sm leading-6">
+        <p className="panel p-4 text-sm leading-6">
           Connectez-vous pour voir les publications des personnes que vous suivez.{" "}
           <Link href="/connexion?next=/?onglet=suivis" className="font-semibold">
             Se connecter
@@ -46,7 +42,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       ) : null}
 
       {feed.ready && feed.posts.length === 0 && !("needsAuth" in feed && feed.needsAuth) ? (
-        <p className="border border-line bg-white p-4 text-sm leading-6 text-muted">Aucune publication pour le moment. Les twits, photos et vidéos de la communauté apparaîtront ici.</p>
+        <p className="panel p-4 text-sm leading-6 text-muted">Aucune publication pour le moment. Les twits, photos et vidéos de la communauté apparaîtront ici.</p>
       ) : null}
 
       <div className="grid gap-3">
@@ -56,7 +52,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       </div>
 
       {feed.hasMore ? (
-        <Link href={`/?onglet=${tab}&page=${page + 1}`} className="mt-4 block text-center text-sm font-semibold text-ink">
+        <Link href={`/?onglet=${tab}&page=${page + 1}`} className="btn btn-line w-full">
           Publications plus anciennes
         </Link>
       ) : null}

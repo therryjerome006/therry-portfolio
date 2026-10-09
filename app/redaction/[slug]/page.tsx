@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArticleCard } from "@/components/journal/ArticleCard";
 import { FollowButton } from "@/components/network/JoinButton";
 import { PersonCard } from "@/components/network/PersonCard";
+import { ProfileHeader } from "@/components/network/ProfileHeader";
 import { PostCard } from "@/components/network/PostCard";
+import { SectionTabs } from "@/components/network/SectionTabs";
 import { ReportButton } from "@/components/network/ReportButton";
 import { ShareLink } from "@/components/network/ShareLink";
 import { categoryLabel } from "@/lib/editorial/constants";
@@ -53,51 +54,39 @@ export default async function EditorialProfilePage({ params, searchParams }: Pro
   const shown = tab === "photos" ? photos : tab === "videos" ? videos : posts;
 
   return (
-    <div className="mx-auto w-full max-w-xl px-4 py-6">
-      <div className="flex items-center gap-4">
-        <span className="grid h-16 w-16 shrink-0 place-items-center bg-[#e4edf8] text-2xl font-bold">
-          {profile.avatar_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={profile.avatar_url} alt="" className="h-16 w-16 object-cover" />
-          ) : (
-            profile.name.slice(0, 1).toUpperCase()
-          )}
-        </span>
-        <div className="min-w-0">
-          <h1 className="truncate text-2xl font-bold">{profile.name}</h1>
-          <p className="truncate text-sm text-muted">@{profile.slug}</p>
-          <p className="mt-1 text-xs font-bold uppercase tracking-wide text-accent">Profil éditorial · {categoryLabel(profile.category)}</p>
-        </div>
-      </div>
-      {profile.description ? <p className="mt-4 whitespace-pre-wrap leading-6">{profile.description}</p> : null}
-      {profile.website ? (
-        <a href={profile.website} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-sm font-semibold text-accent">
-          {profile.website.replace(/^https:\/\//, "")}
-        </a>
-      ) : null}
-      <p className="mt-3 text-sm">
-        <span className="font-bold">{followers.count ?? 0}</span> abonnés · <span className="font-bold">{publications.count ?? 0}</span> publications
-      </p>
-      {!profile.is_active ? <p className="mt-2 text-sm text-muted">Ce profil ne prépare pas de nouvelle publication pour le moment. Les publications déjà en ligne restent visibles.</p> : null}
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <FollowButton editorialId={profile.id} following={Boolean(relation.data)} path={path} />
-        <ShareLink path={path} label="Partager" />
-        <ReportButton targetType="editorial" targetId={profile.id} path={path} />
-      </div>
-      {!me ? <p className="mt-2 text-sm text-muted">Connectez-vous pour suivre ce profil. La lecture reste ouverte.</p> : null}
-      <div className="mt-6 flex gap-3 overflow-x-auto text-sm font-semibold">
-        {[
+    <div className="mx-auto grid w-full max-w-xl gap-4 px-4 py-6">
+      <ProfileHeader
+        name={profile.name}
+        handle={profile.slug}
+        avatarUrl={profile.avatar_url}
+        bio={profile.description}
+        website={profile.website}
+        badge={`Profil éditorial · ${categoryLabel(profile.category)}`}
+        note={profile.is_active ? (me ? undefined : "Connectez-vous pour suivre ce profil. La lecture reste ouverte.") : "Ce profil ne prépare pas de nouvelle publication pour le moment. Les publications déjà en ligne restent visibles."}
+        stats={[
+          { value: publications.count ?? 0, label: "publications" },
+          { value: followers.count ?? 0, label: "abonnés" },
+        ]}
+        actions={
+          <>
+            <FollowButton editorialId={profile.id} following={Boolean(relation.data)} path={path} />
+            <ShareLink path={path} label="Partager" />
+            <ReportButton targetType="editorial" targetId={profile.id} path={path} />
+          </>
+        }
+      />
+      <SectionTabs
+        label="Profil éditorial"
+        active={tab}
+        items={[
           ["publications", "Publications"],
           ["articles", "Articles"],
           ["photos", "Photos"],
           ["videos", "Vidéos"],
           ["abonnes", "Abonnés"],
-        ].map(([id, label]) => (
-          <Link key={id} href={id === "publications" ? path : `${path}?onglet=${id}`} className={`shrink-0 ${tab === id ? "text-ink" : "text-muted"}`}>
-            {label}
-          </Link>
-        ))}
-      </div>
+        ]}
+        hrefFor={(id) => (id === "publications" ? path : `${path}?onglet=${id}`)}
+      />
       <div className="mt-4 grid gap-3">
         {tab === "articles" ? articles.map((article) => <ArticleCard key={article.id} id={article.id} title={article.title} excerpt={article.excerpt} cover={article.cover} category={article.category} />) : null}
         {tab === "abonnes"

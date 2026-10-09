@@ -34,7 +34,7 @@ export function EditorialProfileForm({
   }
 
   return (
-    <form action={saveEditorialProfile} className="grid max-w-lg gap-5 border border-line bg-white p-6">
+    <form action={saveEditorialProfile} className="panel grid max-w-lg gap-5 p-6">
       {profile ? <input type="hidden" name="id" value={profile.id} /> : null}
       <label className="grid gap-2 text-sm font-semibold">
         Nom affiché

@@ -6,6 +6,7 @@ import { ArticleCard } from "@/components/journal/ArticleCard";
 import { FollowButton } from "@/components/network/JoinButton";
 import { PersonCard } from "@/components/network/PersonCard";
 import { ProfileActivity } from "@/components/network/ProfileActivity";
+import { ProfileHeader } from "@/components/network/ProfileHeader";
 import { PostCard } from "@/components/network/PostCard";
 import { ProfileEditor } from "@/components/social/ProfileEditor";
 import { categoryLabel } from "@/lib/editorial/constants";
@@ -64,10 +65,10 @@ export default async function OwnProfilePage({ searchParams }: { searchParams: P
   const matches = (name: string, username: string) => !search || name.toLowerCase().includes(search) || username.toLowerCase().includes(search);
 
   return (
-    <main className="mx-auto grid w-full max-w-5xl gap-6 px-4 py-8 lg:grid-cols-[14rem_1fr]">
-      <nav className="flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible" aria-label="Espace personnel">
+    <main className="mx-auto grid w-full max-w-5xl gap-6 px-4 py-8 lg:grid-cols-[15rem_1fr]">
+      <nav className="section-tabs lg:static lg:flex-col lg:overflow-visible lg:bg-surface" aria-label="Espace personnel">
         {sections.map(([id, label]) => (
-          <Link key={id} href={id === "apercu" ? "/profil" : `/profil?espace=${id}`} className={`shrink-0 border px-3 py-2 text-sm font-semibold ${section === id ? "border-accent text-accent" : "border-line text-muted"}`}>
+          <Link key={id} href={id === "apercu" ? "/profil" : `/profil?espace=${id}`} className="section-tab lg:w-full" aria-current={section === id ? "page" : undefined}>
             {label}
           </Link>
         ))}
@@ -75,11 +76,21 @@ export default async function OwnProfilePage({ searchParams }: { searchParams: P
       <div className="min-w-0">
         {section === "apercu" ? (
           <section className="grid gap-4">
-            <h1 className="text-3xl font-bold">Mon profil</h1>
-            <p className="text-sm leading-6 text-muted">L&apos;adresse e-mail, le téléphone et la tranche d&apos;âge ne sont pas visibles sur le profil public.</p>
-            <p className="text-sm"><span className="font-bold">{hub.publicationCount}</span> {hub.publicationCount === 1 ? "publication" : "publications"} · <span className="font-bold">{counts.followers}</span> {counts.followers === 1 ? "abonné" : "abonnés"} · <span className="font-bold">{counts.following}</span> {counts.following === 1 ? "abonnement" : "abonnements"}</p>
-            <p className="text-xs text-muted">Inscrit le {formatDate(profile.createdAt)}</p>
-            <Link href={path} className="w-fit font-semibold">Voir mon profil public</Link>
+            <ProfileHeader
+              name={profile.displayName}
+              handle={profile.username}
+              avatarUrl={profile.avatarUrl}
+              bio={profile.bio}
+              extra={profile.interests}
+              website={profile.website}
+              note={`Inscrit le ${formatDate(profile.createdAt)}. L'adresse e-mail, le téléphone et la tranche d'âge restent privés.`}
+              stats={[
+                { value: hub.publicationCount, label: hub.publicationCount === 1 ? "publication" : "publications" },
+                { value: counts.followers, label: counts.followers === 1 ? "abonné" : "abonnés" },
+                { value: counts.following, label: counts.following === 1 ? "abonnement" : "abonnements" },
+              ]}
+              actions={<Link href={path} className="btn btn-line">Voir le profil public</Link>}
+            />
             <ProfileActivity activity={activity} mine path={path} />
             <div className="grid gap-3">
               {hub.posts.slice(0, 3).map((post) => (

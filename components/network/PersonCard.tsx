@@ -19,7 +19,7 @@ export function PersonCard({
   action?: ReactNode;
 }) {
   return (
-    <article className="flex gap-3 border border-line bg-white p-4">
+    <article className="panel flex gap-3 p-4">
       <Link href={href} className="grid h-14 w-14 shrink-0 place-items-center bg-[#e4edf8] text-lg font-bold text-ink">
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element

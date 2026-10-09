@@ -14,7 +14,7 @@ export function ArticleCard({
   category: string;
 }) {
   return (
-    <Link href={`/articles/${id}`} className="block border border-line bg-white">
+    <Link href={`/articles/${id}`} className="panel block overflow-hidden">
       {cover ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={cover} alt="" className="aspect-video w-full object-cover" />
