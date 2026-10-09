@@ -8,6 +8,7 @@ export type EditorialProfile = {
   slug: string;
   avatarUrl: string;
   description: string;
+  website: string;
   category: string;
   isActive: boolean;
   archivedAt: string;
@@ -66,6 +67,7 @@ function mapProfile(row: QueryResultRow): EditorialProfile {
     slug: text(row.slug),
     avatarUrl: text(row.avatar_url),
     description: text(row.description),
+    website: text(row.website),
     category: text(row.category),
     isActive: row.is_active === true,
     archivedAt: text(row.archived_at),

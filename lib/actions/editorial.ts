@@ -21,6 +21,17 @@ function clean(value: FormDataEntryValue | null, max: number) {
   return String(value ?? "").replace(/\u0000/g, "").trim().slice(0, max);
 }
 
+function cleanSite(value: string) {
+  if (!value) return "";
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || url.username || url.password) return null;
+    return url.toString().slice(0, 120);
+  } catch {
+    return null;
+  }
+}
+
 function slugify(value: string) {
   return value
     .normalize("NFD")
@@ -54,17 +65,21 @@ export async function saveEditorialProfile(formData: FormData) {
   const id = clean(formData.get("id"), 40);
   const name = clean(formData.get("name"), 40);
   const description = clean(formData.get("description"), 280);
+  const website = cleanSite(clean(formData.get("website"), 120));
   const category = clean(formData.get("category"), 20);
   const active = formData.get("active") === "1";
-  if (name.length < 2 || !isEditorialCategory(category)) go("/admin/studio/profils", "erreur");
-  if (isExplicit(`${name} ${description}`)) go("/admin/studio/profils", "explicite");
+  const removeAvatar = formData.get("removeAvatar") === "1";
+  const back = id ? `/admin/studio/profils/${id}` : "/admin/studio/profils/nouveau";
+  if (website == null) go(back, "lien");
+  if (name.length < 2 || !isEditorialCategory(category)) go(back, "erreur");
+  if (isExplicit(`${name} ${description} ${website}`)) go(back, "explicite");
   let slug = slugify(clean(formData.get("slug"), 40) || name);
   if (!/^[a-z0-9-]{2,40}$/.test(slug)) go("/admin/studio/profils", "erreur");
   const file = formData.get("avatar");
   let avatar = "";
   if (file instanceof File && file.size > 0) {
     const parsed = await readAvatar(file);
-    if ("error" in parsed) go("/admin/studio/profils", "media");
+    if ("error" in parsed) go(back, "media");
     avatar = await uploadNetworkFile(buckets.avatar, `editorial/avatars/${slug}-${crypto.randomUUID()}.${parsed.extension}`, parsed.body, parsed.mime);
   }
   if (id) {
@@ -72,32 +87,48 @@ export async function saveEditorialProfile(formData: FormData) {
     const previous = current.rows[0];
     if (!previous) go("/admin/studio/profils", "erreur");
     if (!clean(formData.get("slug"), 40)) slug = String(previous.slug);
+    const previousSlug = String(previous.slug);
+    if (previousSlug !== slug) {
+      const taken = await db.query(`select id from public.editorial_profiles where slug = $1 and id <> $2`, [slug, id]);
+      const historic = await db.query(`select profile_id from public.editorial_slugs where slug = $1`, [slug]);
+      if (taken.rows[0] || (historic.rows[0] && String(historic.rows[0].profile_id) !== id)) {
+        if (avatar) await deleteNetworkFile(avatar);
+        go(back, "doublon");
+      }
+      await db.query(`insert into public.editorial_slugs (slug, profile_id) values ($1, $2) on conflict (slug) do nothing`, [previousSlug, id]);
+    }
+    const nextAvatar = removeAvatar && !avatar ? "" : avatar;
     await db.query(
       `update public.editorial_profiles
-       set name = $2, slug = $3, description = $4, category = $5, is_active = $6,
-           avatar_url = case when $7 = '' then avatar_url else $7 end
+       set name = $2, slug = $3, description = $4, website = $5, category = $6, is_active = $7,
+           avatar_url = case when $8 = '' and $9 = false then avatar_url else $8 end,
+           updated_at = now()
        where id = $1`,
-      [id, name, slug, description, category, active, avatar],
+      [id, name, slug, description, website, category, active, nextAvatar, removeAvatar],
     );
-    if (avatar && previous.avatar_url) await deleteNetworkFile(String(previous.avatar_url));
+    if ((avatar || removeAvatar) && previous.avatar_url && previous.avatar_url !== nextAvatar) await deleteNetworkFile(String(previous.avatar_url));
     await logEvent(null, id, "profile_updated", name);
     refresh();
-    go("/admin/studio/profils", "profil-modifie");
+    revalidatePath(`/redaction/${slug}`);
+    if (previousSlug !== slug) revalidatePath(`/redaction/${previousSlug}`);
+    go(`/admin/studio/profils/${id}`, "profil-modifie");
   }
   const inserted = await db.query(
-    `insert into public.editorial_profiles (name, slug, description, category, avatar_url, is_active)
-     values ($1, $2, $3, $4, $5, $6)
+    `insert into public.editorial_profiles (name, slug, description, website, category, avatar_url, is_active)
+     values ($1, $2, $3, $4, $5, $6, $7)
      on conflict (slug) do nothing
      returning id`,
-    [name, slug, description, category, avatar, active],
+    [name, slug, description, website, category, avatar, active],
   );
   if (!inserted.rows[0]) {
     if (avatar) await deleteNetworkFile(avatar);
-    go("/admin/studio/profils", "doublon");
+    go("/admin/studio/profils/nouveau", "doublon");
   }
-  await logEvent(null, String(inserted.rows[0].id), "profile_created", name);
+  const createdId = String(inserted.rows[0].id);
+  await logEvent(null, createdId, "profile_created", name);
   refresh();
-  go("/admin/studio/profils", "profil");
+  revalidatePath(`/redaction/${slug}`);
+  go(`/admin/studio/profils/${createdId}`, "profil");
 }
 
 export async function setProfileState(formData: FormData) {

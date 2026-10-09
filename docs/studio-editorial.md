@@ -21,7 +21,7 @@ Sur Vercel, `vercel.json` appelle la tâche une fois par jour à 12:00 UTC. Il f
 
 ## Utilisation
 
-1. Ouvrir **Profils** pour créer, modifier, désactiver ou archiver une identité éditoriale. Six profils de la plateforme sont préparés : Officiel, Tech, Culture, Arena, Campus et Créativité.
+1. Ouvrir **Profils**, puis **Personnaliser** un présentateur : nom, identifiant, bio, lien `https` et photo. Chaque présentateur a sa page `/redaction/[identifiant]`, avec publications, articles, photos, vidéos et abonnés. Un ancien identifiant redirige vers le nouveau. La migration est `supabase/editorial-profile.sql`. Six profils sont préparés : Officiel, Tech, Culture, Arena, Campus et Créativité.
 2. **Nouvelle publication** : choisir le profil, le format, le texte et, selon le cas, une photo, une vidéo MP4 de 15 secondes ou une couverture d’article.
 3. Enregistrer un brouillon, publier tout de suite, ou programmer une heure dans le fuseau affiché (`America/Port-au-Prince` par défaut).
 4. **Génération IA** : les textes arrivent en brouillons. Ils ne sont jamais publiés seuls. Les chiffres, dates et actualités sont à vérifier.

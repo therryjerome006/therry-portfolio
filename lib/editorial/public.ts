@@ -112,12 +112,21 @@ export async function loadEditorialPost(id: string) {
   return toFeed(data as PublicRow, stats.likes, stats.comments, stats.liked, stats.saved);
 }
 
+export async function previousEditorialSlug(slug: string) {
+  const supabase = await createClient();
+  if (!supabase) return null;
+  const { data } = await supabase.from("editorial_slugs").select("profile_id").eq("slug", slug).maybeSingle();
+  if (!data?.profile_id) return null;
+  const { data: profile } = await supabase.from("editorial_profiles").select("slug").eq("id", data.profile_id).maybeSingle();
+  return profile?.slug || null;
+}
+
 export async function loadEditorialProfile(slug: string) {
   const supabase = await createClient();
   if (!supabase) return null;
   const { data: profile } = await supabase
     .from("editorial_profiles")
-    .select("id, name, slug, avatar_url, description, category, is_active")
+    .select("id, name, slug, avatar_url, description, website, category, is_active")
     .eq("slug", slug)
     .maybeSingle();
   if (!profile) return null;
@@ -141,7 +150,14 @@ export async function loadEditorialProfile(slug: string) {
     }),
     articles: rows
       .filter((row) => row.kind === "article")
-      .map((row) => ({ id: row.id, title: row.title, publishedAt: row.published_at })),
+      .map((row) => ({
+        id: row.id,
+        title: row.title,
+        excerpt: row.body.replace(/\s+/g, " ").trim().slice(0, 180),
+        cover: row.cover_url || "",
+        category: row.category || "",
+        publishedAt: row.published_at,
+      })),
   };
 }
 

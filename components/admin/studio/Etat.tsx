@@ -2,6 +2,7 @@ const messages: Record<string, string> = {
   profil: "Le profil éditorial est créé.",
   "profil-modifie": "Le profil est mis à jour.",
   doublon: "Cet identifiant existe déjà.",
+  lien: "Le lien doit commencer par https://.",
   brouillon: "Le brouillon est enregistré.",
   brouillons: "Les brouillons générés sont enregistrés. Relisez-les avant de les publier.",
   publie: "La publication est en ligne.",
