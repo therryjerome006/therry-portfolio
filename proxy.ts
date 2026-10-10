@@ -77,7 +77,7 @@ export async function proxy(request: NextRequest) {
     return redirect;
   }
 
-  return withVisitorSession(request, NextResponse.next());
+  return withVisitorSession(request, await withTrustedPath(request));
 }
 
 export const config = {

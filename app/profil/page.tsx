@@ -89,7 +89,12 @@ export default async function OwnProfilePage({ searchParams }: { searchParams: P
                 { value: counts.followers, label: counts.followers === 1 ? "abonné" : "abonnés" },
                 { value: counts.following, label: counts.following === 1 ? "abonnement" : "abonnements" },
               ]}
-              actions={<Link href={path} className="btn btn-line">Voir le profil public</Link>}
+              actions={
+                <>
+                  <Link href={path} className="btn btn-line">Voir le profil public</Link>
+                  <Link href="/talents/moi" className="btn btn-primary">Espace Talents</Link>
+                </>
+              }
             />
             <ProfileActivity activity={activity} mine path={path} />
             <div className="grid gap-3">

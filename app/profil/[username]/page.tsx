@@ -36,6 +36,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
   }
   const supabase = await createClient();
   const me = supabase ? (await supabase.auth.getUser()).data.user?.id ?? null : null;
+  const talent = supabase ? (await supabase.from("talent_profiles").select("status, show_public").eq("user_id", profile.id).maybeSingle()).data : null;
   const mine = me === profile.id;
   const [counts, publicationCount, relation, blocked, posts, photos, videos, articles, activity, relations] = await Promise.all([
     relationCounts(profile.id),

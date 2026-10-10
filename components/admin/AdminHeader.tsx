@@ -16,6 +16,7 @@ const links = [
   { href: "/admin/communaute", label: "Communauté", icon: SquarePen },
   { href: "/admin/reseau", label: "Réseau", icon: SquarePen },
   { href: "/admin/studio", label: "Studio", icon: PenLine },
+  { href: "/admin/talents", label: "Talents", icon: SquarePen },
 ];
 
 export function AdminHeader() {

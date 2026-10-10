@@ -230,7 +230,7 @@ export async function toggleSave(postId: string): Promise<ActionState> {
 }
 
 export async function reportContent(targetType: string, targetId: string, reason: string, note: string): Promise<ActionState> {
-  const allowed = ["post", "comment", "article", "photo", "video", "profile", "group", "editorial"];
+  const allowed = ["post", "comment", "article", "photo", "video", "profile", "group", "editorial", "talent", "portfolio", "service", "opportunity", "review", "talent_project"];
   if (!allowed.includes(targetType) || !/^[A-Za-z0-9-]{1,80}$/.test(targetId) || !isReportReason(reason)) {
     return { error: "Signalement incomplet." };
   }

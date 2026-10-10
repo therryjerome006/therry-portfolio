@@ -3,6 +3,7 @@ export const socialNav = [
   { href: "/decouvrir", label: "Découvrir" },
   { href: "/articles", label: "Articles" },
   { href: "/communautes", label: "Communautés" },
+  { href: "/talents", label: "Talents" },
 ] as const;
 
 export const developerNav = [

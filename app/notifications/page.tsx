@@ -20,7 +20,13 @@ export default async function NotificationsPage() {
       <h1 className="text-2xl font-bold">Notifications</h1>
       <ul className="mt-4 grid gap-2">
         {(data ?? []).map((item) => {
-          const href = item.content_type === "feed" && item.content_id ? `/p/${item.content_id}` : "/notifications";
+          const href = item.content_type === "talent" && item.content_id
+            ? item.note?.includes("accept")
+              ? `/talents/moi/projets/${item.content_id}`
+              : item.kind === "talent_request"
+                ? "/talents/moi/projets"
+                : `/talents/opportunites/${item.content_id}`
+            : item.content_type === "feed" && item.content_id ? `/p/${item.content_id}` : "/notifications";
           const label = item.kind === "follow"
             ? "Quelqu'un vous suit."
             : item.kind === "comment"

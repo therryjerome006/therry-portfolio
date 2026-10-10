@@ -25,6 +25,7 @@ export default async function DiscoverPage() {
     <div className="mx-auto grid w-full max-w-5xl gap-8 px-4 py-6">
       <section>
         <h1 className="text-2xl font-bold">Découvrir</h1>
+        <p className="mt-3 text-sm"><Link href="/talents" className="font-semibold text-accent">TY Space Talents</Link> réunit les portfolios, les services et les missions publiés.</p>
         <h2 className="mt-6 text-sm font-bold uppercase tracking-wide text-muted">Profils à suivre</h2>
         <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {editorial.length === 0 ? <li className="text-sm text-muted">Aucun profil éditorial actif.</li> : null}
