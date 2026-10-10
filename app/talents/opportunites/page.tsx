@@ -17,8 +17,8 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
         <input name="q" defaultValue={query.q ?? ""} placeholder="Titre ou description" aria-label="Recherche" />
         <select name="categorie" defaultValue={query.categorie ?? ""} aria-label="Catégorie"><option value="">Catégorie</option>{categories.filter((item) => item.active && !item.parentId).map((item) => <option key={item.id} value={item.slug}>{item.name}</option>)}</select>
         <select name="mission" defaultValue={query.mission ?? ""} aria-label="Type"><option value="">Type de projet</option>{missionTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
-        <button type="submit">Filtrer</button>
-        <a href="/talents/opportunites">Effacer</a>
+        <button type="submit">Afficher les projets filtrés</button>
+        <a className="market-ghost" href="/talents/opportunites">Effacer les filtres</a>
       </form>
       {items.length === 0 ? <EmptyState title="Aucune mission visible" text="Les missions non admissibles pour votre âge, ou encore en vérification, ne sont pas affichées." /> : (
         <ul className="market-gigs">{items.map((item) => <li key={item.id}><OpportunityCard item={item} /></li>)}</ul>

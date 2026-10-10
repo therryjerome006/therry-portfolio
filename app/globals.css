@@ -1003,13 +1003,52 @@ html[data-theme="dark"] .cover-wash {
 .market {
   min-height: 100vh;
   background: #fff;
-  color: #222325;
+  color: #111;
+  color-scheme: light;
   font-family: var(--font-instrument-sans), "Segoe UI", sans-serif;
 }
 
 .market a {
-  color: inherit;
+  color: #111;
   text-decoration: none;
+}
+
+.market .btn-primary,
+.market .market-filters button,
+.market a.market-go,
+.market .market-search button {
+  background: #111;
+  color: #fff;
+  border: 1px solid #111;
+}
+
+.market .btn-line,
+.market a.market-ghost,
+.market .market-scroll-btn {
+  background: #fff;
+  color: #111;
+  border: 1px solid #111;
+}
+
+.market .btn-primary:hover,
+.market .market-filters button:hover,
+.market a.market-go:hover,
+.market .market-search button:hover {
+  background: #000;
+  color: #fff;
+}
+
+.market .btn-line:hover,
+.market a.market-ghost:hover,
+.market .market-scroll-btn:hover {
+  background: #111;
+  color: #fff;
+}
+
+.market button:focus-visible,
+.market a:focus-visible {
+  outline: 2px solid #111;
+  outline-offset: 2px;
 }
 
 .market-bar,
@@ -1073,25 +1112,26 @@ html[data-theme="dark"] .cover-wash {
 }
 
 .market-search button {
-  display: grid;
-  width: 2.4rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   height: 2.15rem;
   margin-right: 0.25rem;
-  place-items: center;
-  border: 0;
+  padding: 0 0.85rem;
   border-radius: 999px;
-  background: #222;
-  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 750;
   cursor: pointer;
 }
 
 .market-tools {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.85rem;
-  color: #404145;
+  gap: 0.75rem 1rem;
+  color: #111;
   font-size: 0.92rem;
-  font-weight: 650;
+  font-weight: 700;
 }
 
 .market-tools a {
@@ -1116,20 +1156,20 @@ html[data-theme="dark"] .cover-wash {
   flex: 0 0 auto;
   border: 0;
   border-bottom: 3px solid transparent;
-  background: transparent;
+  background: #fff;
   padding: 0.75rem 0.1rem 0.65rem;
-  color: #62646a;
+  color: #111;
   font: inherit;
   font-size: 0.95rem;
+  font-weight: 650;
   cursor: pointer;
 }
 
 .market-cat[aria-expanded="true"],
 .market-cat:hover,
 .market-cat:focus-visible {
-  border-bottom-color: #1dbf73;
-  color: #222;
-  outline: none;
+  border-bottom-color: #111;
+  color: #111;
 }
 
 .market-drop {
@@ -1285,10 +1325,8 @@ html[data-theme="dark"] .cover-wash {
   width: 2.2rem;
   height: 2.2rem;
   place-items: center;
-  border: 1px solid #e4e5e7;
   border-radius: 999px;
-  background: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  font-weight: 750;
   cursor: pointer;
 }
 
@@ -1369,15 +1407,16 @@ html[data-theme="dark"] .cover-wash {
 }
 
 .market-filters button,
-.market-go {
+.market a.market-go,
+.market a.market-ghost {
+  display: inline-flex;
+  align-items: center;
   height: 2.4rem;
-  border: 0;
   border-radius: 999px;
-  background: #222;
   padding: 0 1rem;
-  color: #fff;
   font: inherit;
-  font-weight: 700;
+  font-size: 0.9rem;
+  font-weight: 750;
   cursor: pointer;
 }
 

@@ -30,22 +30,13 @@ export default async function TalentsLayout({ children }: { children: ReactNode 
           <form className="market-search" action="/talents/recherche">
             <label className="sr-only" htmlFor="market-q">Recherche</label>
             <input id="market-q" name="q" placeholder="Quel service cherchez-vous aujourd'hui ?" />
-            <button type="submit" aria-label="Rechercher">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-                <path d="M16.5 16.5 21 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </button>
+            <button type="submit">Rechercher un service</button>
           </form>
           <nav className="market-tools" aria-label="Compte marketplace">
-            <Link href="/">Communauté</Link>
-            <Link href="/talents/favoris" aria-label="Favoris">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20s-7-4.4-7-9a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 4.6-7 9-7 9Z" stroke="currentColor" strokeWidth="1.8" /></svg>
-            </Link>
-            <Link href="/talents/opportunites" aria-label="Projets">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" strokeWidth="1.8" /><path d="M8 7V5h8v2" stroke="currentColor" strokeWidth="1.8" /></svg>
-            </Link>
-            {user ? <Link href="/talents/moi">Mon espace</Link> : <Link href="/connexion?next=/talents">Connexion</Link>}
+            <Link href="/">Retourner à la communauté</Link>
+            <Link href="/talents/favoris">Ouvrir mes favoris</Link>
+            <Link href="/talents/opportunites">Voir les projets</Link>
+            {user ? <Link href="/talents/moi">Ouvrir mon espace</Link> : <Link href="/connexion?next=/talents">Se connecter</Link>}
           </nav>
         </div>
         <MegaMenu groups={groups} />

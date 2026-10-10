@@ -35,7 +35,7 @@ export function OfferPanel({ packages, addons }: { packages: Package[]; addons: 
     <section className="grid gap-3 border border-line p-4" aria-label="Formules">
       <div className="flex flex-wrap gap-2">
         {packages.map((item) => (
-          <button key={item.id} type="button" className={item.id === current.id ? "btn btn-primary" : "btn btn-line"} aria-pressed={item.id === current.id} onClick={() => setSelected(item.id)}>
+          <button key={item.id} type="button" className={item.id === current.id ? "btn btn-primary" : "btn btn-line"} aria-pressed={item.id === current.id} aria-label={`Consulter la formule ${item.title}, sans paiement`} onClick={() => setSelected(item.id)}>
             {item.title}
           </button>
         ))}

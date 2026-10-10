@@ -21,8 +21,8 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
         <select name="type" defaultValue={query.type ?? ""} aria-label="Type"><option value="">Type de prestation</option>{offerKinds.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
         <input name="prixMin" defaultValue={query.prixMin ?? ""} placeholder="Budget min" aria-label="Budget minimum" />
         <input name="prixMax" defaultValue={query.prixMax ?? ""} placeholder="Budget max" aria-label="Budget maximum" />
-        <button type="submit">Filtrer</button>
-        <a href="/talents/services">Effacer</a>
+        <button type="submit">Afficher les services filtrés</button>
+        <a className="market-ghost" href="/talents/services">Effacer les filtres</a>
       </form>
       {services.length === 0 ? <EmptyState title="Aucun service" text="Aucune offre publiée ne correspond. Les prix affichés plus tard seront indicatifs." /> : (
         <ul className="market-gigs">{services.map((service) => <li key={service.id}><ServiceCard service={service} /></li>)}</ul>

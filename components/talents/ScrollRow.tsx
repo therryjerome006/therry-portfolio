@@ -10,9 +10,9 @@ export function ScrollRow({ children }: { children: ReactNode }) {
   }
   return (
     <div className="market-scroll">
-      <button type="button" className="market-scroll-btn prev" aria-label="Précédent" onClick={() => move(-1)}>‹</button>
+      <button type="button" className="market-scroll-btn prev" aria-label="Faire défiler vers les catégories précédentes" onClick={() => move(-1)}>‹</button>
       <div ref={ref} className="market-row">{children}</div>
-      <button type="button" className="market-scroll-btn next" aria-label="Suivant" onClick={() => move(1)}>›</button>
+      <button type="button" className="market-scroll-btn next" aria-label="Faire défiler vers les catégories suivantes" onClick={() => move(1)}>›</button>
     </div>
   );
 }

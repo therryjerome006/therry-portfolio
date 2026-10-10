@@ -24,6 +24,7 @@ export function MegaMenu({ groups }: { groups: Group[] }) {
             type="button"
             className="market-cat"
             aria-expanded={open === group.parent.id}
+            aria-label={open === group.parent.id ? `Fermer les sous-catégories de ${group.parent.name}` : `Ouvrir les sous-catégories de ${group.parent.name}`}
             onMouseEnter={() => setOpen(group.parent.id)}
             onFocus={() => setOpen(group.parent.id)}
             onClick={() => setOpen(open === group.parent.id ? null : group.parent.id)}

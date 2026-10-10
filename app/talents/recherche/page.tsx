@@ -52,9 +52,9 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         </select>
         <input name="prixMax" inputMode="decimal" defaultValue={query.prixMax ?? ""} aria-label="Budget maximum" placeholder="Budget max" />
         <input name="delai" type="number" min={1} max={365} defaultValue={query.delai ?? ""} aria-label="Délai maximum en jours" placeholder="Délai max" />
-        <button type="submit">Filtrer</button>
+        <button type="submit">Lancer la recherche</button>
       </form>
-      {(query.q || query.categorie || query.prixMax || query.delai) ? <Link href="/talents/recherche" className="text-sm font-semibold text-[#1557c0]">Effacer les filtres</Link> : null}
+      {(query.q || query.categorie || query.prixMax || query.delai || query.type) ? <Link href="/talents/recherche" className="market-ghost">Effacer les filtres de recherche</Link> : null}
       {results.length === 0 ? <EmptyState title="Aucun résultat" text="Aucun contenu publié ne correspond à ces critères." /> : (
         <ul className="market-gigs">
           {results.map((item) => {

@@ -31,8 +31,8 @@ export default async function DiscoverTalents({ searchParams }: { searchParams: 
           <option value="">Toutes les langues</option>
           {talentLanguages.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
         </select>
-        <button type="submit">Filtrer</button>
-        <a href="/talents/decouvrir">Effacer</a>
+        <button type="submit">Afficher les talents filtrés</button>
+        <a className="market-ghost" href="/talents/decouvrir">Effacer les filtres</a>
       </form>
       {people.length === 0 ? <EmptyState title="Aucun résultat" text="Aucun profil publié ne correspond à ces filtres." /> : (
         <ul className="market-gigs">{people.map((person) => <li key={person.userId}><TalentCard person={person} /></li>)}</ul>
