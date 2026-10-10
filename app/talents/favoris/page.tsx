@@ -34,13 +34,13 @@ export default async function FavoritesPage() {
       <section className="grid gap-3">
         <h2 className="text-xl font-bold">Services</h2>
         {savedServices.length === 0 ? <EmptyState title="Aucun service enregistré" text="Le bouton favori apparaît sur une fiche de service publiée." href="/talents/services" action="Voir les services" /> : (
-          <ul className="grid gap-3 sm:grid-cols-2">{savedServices.map((service) => service ? <li key={service.id}><ServiceCard service={service} /></li> : null)}</ul>
+          <ul className="market-gigs">{savedServices.map((service) => service ? <li key={service.id}><ServiceCard service={service} /></li> : null)}</ul>
         )}
       </section>
       <section className="grid gap-3">
         <h2 className="text-xl font-bold">Talents</h2>
         {savedTalents.length === 0 ? <EmptyState title="Aucun talent enregistré" text="Vous pouvez enregistrer une vitrine depuis son profil." href="/talents/decouvrir" action="Découvrir les talents" /> : (
-          <ul className="grid gap-3 sm:grid-cols-2">{savedTalents.map((item) => item ? <li key={item.person.userId}><TalentCard person={item.person} /></li> : null)}</ul>
+          <ul className="market-gigs">{savedTalents.map((item) => item ? <li key={item.person.userId}><TalentCard person={item.person} /></li> : null)}</ul>
         )}
       </section>
       <p className="text-sm"><Link href="/profil?espace=relations" className="font-semibold text-accent">Voir les comptes suivis</Link></p>

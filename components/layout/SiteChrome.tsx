@@ -9,21 +9,24 @@ import { BottomNav } from "@/components/network/BottomNav";
 export function SiteChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const admin = pathname.startsWith("/admin");
+  const market = pathname.startsWith("/talents");
 
   return (
     <>
-      <div className="atmosphere" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-      </div>
+      {market ? null : (
+        <div className="atmosphere" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+      )}
       <div className="relative z-10">
-        {admin ? null : <Navbar />}
-        <main id="contenu" className={admin ? undefined : "pb-20 lg:pb-0"}>
+        {admin || market ? null : <Navbar />}
+        <main id="contenu" className={admin ? undefined : market ? "market-root" : "pb-20 lg:pb-0"}>
           {children}
         </main>
-        {admin ? null : <BottomNav />}
-        {admin ? null : <Footer />}
+        {admin || market ? null : <BottomNav />}
+        {admin || market ? null : <Footer />}
       </div>
     </>
   );

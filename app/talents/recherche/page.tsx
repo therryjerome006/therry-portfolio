@@ -38,29 +38,25 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         <h1 className="text-3xl font-bold">{query.q ? `Résultats pour « ${query.q.slice(0, 40)} »` : "Parcourir"}</h1>
         <p className="text-sm">{results.length} résultat{results.length > 1 ? "s" : ""} accessible{results.length > 1 ? "s" : ""}.</p>
       </header>
-      <form action="/talents/recherche" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        <label className="grid gap-1 text-sm font-semibold">Recherche<input name="q" defaultValue={query.q ?? ""} className="field" /></label>
-        <label className="grid gap-1 text-sm font-semibold">Type
-          <select name="type" defaultValue={type} className="field">
-            <option value="service">Services</option>
-            <option value="talent">Talents</option>
-            <option value="projet">Projets</option>
-            <option value="categorie">Catégories</option>
-          </select>
-        </label>
-        <label className="grid gap-1 text-sm font-semibold">Catégorie
-          <select name="categorie" defaultValue={query.categorie ?? ""} className="field">
-            <option value="">Toutes</option>
-            {tree.map((group) => <option key={group.parent.id} value={group.parent.slug}>{group.parent.name}</option>)}
-          </select>
-        </label>
-        <label className="grid gap-1 text-sm font-semibold">Budget maximum<input name="prixMax" inputMode="decimal" defaultValue={query.prixMax ?? ""} className="field" /></label>
-        <label className="grid gap-1 text-sm font-semibold">Délai maximum en jours<input name="delai" type="number" min={1} max={365} defaultValue={query.delai ?? ""} className="field" /></label>
-        <button className="btn btn-primary self-end" type="submit">Filtrer</button>
+      <form action="/talents/recherche" className="market-filters">
+        <input name="q" defaultValue={query.q ?? ""} aria-label="Recherche" placeholder="Recherche" />
+        <select name="type" defaultValue={type} aria-label="Type">
+          <option value="service">Services</option>
+          <option value="talent">Talents</option>
+          <option value="projet">Projets</option>
+          <option value="categorie">Catégories</option>
+        </select>
+        <select name="categorie" defaultValue={query.categorie ?? ""} aria-label="Catégorie">
+          <option value="">Catégorie</option>
+          {tree.map((group) => <option key={group.parent.id} value={group.parent.slug}>{group.parent.name}</option>)}
+        </select>
+        <input name="prixMax" inputMode="decimal" defaultValue={query.prixMax ?? ""} aria-label="Budget maximum" placeholder="Budget max" />
+        <input name="delai" type="number" min={1} max={365} defaultValue={query.delai ?? ""} aria-label="Délai maximum en jours" placeholder="Délai max" />
+        <button type="submit">Filtrer</button>
       </form>
       {(query.q || query.categorie || query.prixMax || query.delai) ? <Link href="/talents/recherche" className="text-sm font-semibold text-[#1557c0]">Effacer les filtres</Link> : null}
       {results.length === 0 ? <EmptyState title="Aucun résultat" text="Aucun contenu publié ne correspond à ces critères." /> : (
-        <ul className="grid gap-3 sm:grid-cols-2">
+        <ul className="market-gigs">
           {results.map((item) => {
             if (isService(item)) return <li key={item.id}><ServiceCard service={item} /></li>;
             if (isTalent(item)) return <li key={item.userId}><TalentCard person={item} /></li>;

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CategoryArt } from "@/components/talents/CategoryArt";
 import { categoryTree, loadCategories } from "@/lib/talents/queries";
 
 export const dynamic = "force-dynamic";
@@ -6,16 +7,18 @@ export const dynamic = "force-dynamic";
 export default async function CategoriesPage() {
   const groups = categoryTree(await loadCategories());
   return (
-    <div className="grid gap-4">
-      <h1 className="text-3xl font-bold">Catégories</h1>
-      <ul className="grid gap-3">
+    <div>
+      <h1 className="text-3xl font-bold tracking-tight">Toutes les catégories</h1>
+      <ul className="market-columns mt-6">
         {groups.map((group) => (
-          <li key={group.parent.id} className="panel p-4">
-            <Link href={`/talents/categories/${group.parent.slug}`} className="text-lg font-bold">{group.parent.name}</Link>
-            {group.parent.description ? <p className="mt-1 text-sm text-muted">{group.parent.description}</p> : null}
-            <ul className="mt-3 flex flex-wrap gap-2">
+          <li key={group.parent.id}>
+            <Link href={`/talents/categories/${group.parent.slug}`}>
+              <CategoryArt slug={group.parent.slug} title={group.parent.name} />
+              <h2>{group.parent.name}</h2>
+            </Link>
+            <ul>
               {group.children.map((child) => (
-                <li key={child.id}><Link href={`/talents/categories/${child.slug}`} className="inline-block bg-[#e7f1ff] px-3 py-2 text-sm font-semibold text-[#1557c0]">{child.name}</Link></li>
+                <li key={child.id}><Link href={`/talents/categories/${child.slug}`} className="sub">{child.name}</Link></li>
               ))}
             </ul>
           </li>

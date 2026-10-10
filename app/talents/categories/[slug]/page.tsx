@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CategoryArt } from "@/components/talents/CategoryArt";
 import { EmptyState, OpportunityCard, ServiceCard, TalentCard } from "@/components/talents/Cards";
 import { categoryTree, loadCategories, searchMarket, type TalentCategory, type TalentOpportunity, type TalentPerson, type TalentService } from "@/lib/talents/queries";
 
@@ -44,28 +45,33 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
         <p className="text-sm">{serviceRows.length} service{serviceRows.length > 1 ? "s" : ""} dans cette catégorie.</p>
       </header>
       {children.length > 0 ? (
-        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="market-columns">
           {children.map((child) => (
-            <li key={child.id}><Link href={`/talents/categories/${child.slug}`} className="panel block p-4 font-semibold">{child.name}</Link></li>
+            <li key={child.id}>
+              <Link href={`/talents/categories/${child.slug}`}>
+                <CategoryArt slug={child.slug} title={child.name} />
+                <h2>{child.name}</h2>
+              </Link>
+            </li>
           ))}
         </ul>
       ) : null}
-      <section className="grid gap-3">
-        <h2 className="text-xl font-bold">Services</h2>
+      <section className="market-section">
+        <h2>Services</h2>
         {serviceRows.length === 0 ? <EmptyState title="Aucun service dans cette catégorie" text="Les offres publiées par les membres apparaîtront ici." /> : (
-          <ul className="grid gap-3 sm:grid-cols-2">{serviceRows.map((service) => <li key={service.id}><ServiceCard service={service} /></li>)}</ul>
+          <ul className="market-gigs">{serviceRows.map((service) => <li key={service.id}><ServiceCard service={service} /></li>)}</ul>
         )}
       </section>
       {projectRows.length > 0 ? (
         <section className="grid gap-3">
           <h2 className="text-xl font-bold">Projets</h2>
-          <ul className="grid gap-3 sm:grid-cols-2">{projectRows.map((item) => <li key={item.id}><OpportunityCard item={item} /></li>)}</ul>
+          <ul className="market-gigs">{projectRows.map((item) => <li key={item.id}><OpportunityCard item={item} /></li>)}</ul>
         </section>
       ) : null}
       {talentRows.length > 0 ? (
         <section className="grid gap-3">
           <h2 className="text-xl font-bold">Talents</h2>
-          <ul className="grid gap-3 sm:grid-cols-2">{talentRows.map((person) => <li key={person.userId}><TalentCard person={person} /></li>)}</ul>
+          <ul className="market-gigs">{talentRows.map((person) => <li key={person.userId}><TalentCard person={person} /></li>)}</ul>
         </section>
       ) : null}
       <p className="text-xs text-muted">Les résultats suivent la date de publication. Aucun classement de popularité n'est calculé.</p>

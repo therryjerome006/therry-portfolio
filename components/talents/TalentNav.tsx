@@ -1,26 +1,21 @@
 import Link from "next/link";
 
-const publicLinks = [
-  ["/talents", "Découvrir"],
-  ["/talents/services", "Services"],
-  ["/talents/decouvrir", "Talents"],
-  ["/talents/opportunites", "Projets"],
-  ["/talents/categories", "Catégories"],
+const links = [
+  ["/talents/moi", "Profil"],
+  ["/talents/moi/services", "Mes services"],
+  ["/talents/moi/portfolio/nouveau", "Portfolio"],
+  ["/talents/moi/candidatures", "Candidatures"],
+  ["/talents/moi/projets", "Missions"],
+  ["/talents/moi/reglages", "Paramètres"],
   ["/talents/aide", "Aide"],
 ] as const;
 
-const privateLinks = [
-  ["/talents/favoris", "Favoris"],
-  ["/talents/moi/projets", "Messages"],
-  ["/talents/moi", "Mon espace"],
-] as const;
-
 export function TalentNav({ signedIn, path }: { signedIn: boolean; path: string }) {
-  const links = signedIn ? [...publicLinks, ...privateLinks] : publicLinks;
+  void signedIn;
   return (
-    <nav className="section-tabs" aria-label="Talents">
+    <nav className="market-subnav" aria-label="Mon espace">
       {links.map(([href, label]) => (
-        <Link key={`${href}-${label}`} href={href} className="section-tab" aria-current={path === href ? "page" : undefined}>
+        <Link key={`${href}-${label}`} href={href} aria-current={path === href ? "page" : undefined}>
           {label}
         </Link>
       ))}
